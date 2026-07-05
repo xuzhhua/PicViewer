@@ -1,0 +1,21 @@
+{
+  "name": "picviewer",
+  "version": "1.0.0",
+  "description": "Web-based local image browser with network drive support",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js",
+    "setup": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "sharp": "^0.33.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
