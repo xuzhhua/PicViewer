@@ -88,29 +88,43 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .lightbox-media-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 90%;
-  max-height: 85vh;
+  overflow: hidden;
+}
+
+.lightbox-image-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
 }
 
 .lightbox-image {
-  max-width: 100%;
+  max-width: 90vw;
   max-height: 85vh;
   object-fit: contain;
   border-radius: 2px;
-  transition: transform 0.2s ease, opacity 0.3s;
   opacity: 0;
-  cursor: zoom-in;
+  transition: opacity 0.3s;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .lightbox-image.loaded {
   opacity: 1;
+}
+
+.lightbox-zoom-label {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Video */
