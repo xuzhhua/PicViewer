@@ -102,6 +102,15 @@
   color: var(--text-muted);
 }
 
+.media-list-folder {
+  font-size: 11px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
 .media-list-detail {
   display: flex;
   gap: 6px;
@@ -118,8 +127,6 @@
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
-}
-  color: var(--text-muted);
 }
 
 /* === Shared card styles === */
@@ -189,6 +196,15 @@
 .image-card-meta {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.image-card-folder {
+  font-size: 10px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
 }
 
 /* Folder cards */

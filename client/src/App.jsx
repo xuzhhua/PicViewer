@@ -10,16 +10,18 @@ const VIEW_MODES = [
   { key: 'grid', icon: '⊞', label: '网格' },
   { key: 'waterfall', icon: '▥', label: '瀑布' },
   { key: 'list', icon: '☰', label: '列表' },
+  { key: 'all', icon: '⊡', label: '全部（含子目录）' },
 ];
 
 export default function App() {
-  const { folders, browseData, loading, error, addFolder, removeFolder, browse, pickFolder } = useApi();
+  const { folders, browseData, loading, error, addFolder, removeFolder, browse, browseRecursive, pickFolder } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
+  const isRecursive = viewMode === 'all';
 
   const handleBrowse = useCallback((folderPath) => {
     setCurrentPath(folderPath);
@@ -33,6 +35,16 @@ export default function App() {
     setSearchQuery('');
     browse('', true);
   }, [browse]);
+
+  // When switching to "all" mode, re-browse recursively
+  const handleViewMode = useCallback((mode) => {
+    setViewMode(mode);
+    if (mode === 'all' && currentPath) {
+      browseRecursive(currentPath);
+    } else if (mode !== 'all' && isRecursive && currentPath) {
+      browse(currentPath, true);
+    }
+  }, [currentPath, isRecursive, browse, browseRecursive]);
 
   const handleOpenLightbox = useCallback((index) => {
     setLightboxIndex(index);
@@ -130,7 +142,7 @@ export default function App() {
                 <button
                   key={m.key}
                   className={`vm-btn${viewMode === m.key ? ' active' : ''}`}
-                  onClick={() => setViewMode(m.key)}
+                  onClick={() => handleViewMode(m.key)}
                   title={m.label}
                 >
                   {m.icon}

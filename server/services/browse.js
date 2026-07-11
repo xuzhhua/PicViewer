@@ -127,4 +127,103 @@ async function listDirectory(targetPath, options = {}) {
   };
 }
 
-module.exports = { listDirectory, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS };
+// Recursively list all images and videos from directory and subdirectories
+async function listRecursive(targetPath, options = {}) {
+  const { details = false, maxDepth = 5 } = options;
+  const rootFolders = readData();
+
+  if (!isPathAllowed(targetPath, rootFolders)) {
+    throw Object.assign(new Error('Path not allowed'), { code: 'EACCES' });
+  }
+
+  const images = [];
+  const videos = [];
+
+  async function walk(dirPath, depth) {
+    if (depth > maxDepth) return;
+
+    let entries;
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch (e) {
+      return; // Skip inaccessible directories
+    }
+
+    // Sort for consistent ordering
+    entries.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name.startsWith('$')) continue;
+
+      const fullPath = path.join(dirPath, entry.name);
+      const relDir = path.relative(targetPath, dirPath) || '.';
+
+      if (entry.isDirectory()) {
+        await walk(fullPath, depth + 1);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+
+        if (IMAGE_EXTENSIONS.has(ext)) {
+          try {
+            const fileStat = await fs.stat(fullPath);
+            const imgInfo = {
+              name: entry.name, path: fullPath, type: 'image',
+              size: fileStat.size, modified: fileStat.mtime.toISOString(),
+              folder: relDir
+            };
+            if (details) {
+              try {
+                const meta = await sharp(fullPath).metadata();
+                imgInfo.width = meta.width || 0;
+                imgInfo.height = meta.height || 0;
+                imgInfo.format = meta.format || ext.slice(1);
+              } catch (e) { /* ignore */ }
+            }
+            images.push(imgInfo);
+          } catch (e) { /* skip */ }
+        } else if (VIDEO_EXTENSIONS.has(ext)) {
+          try {
+            const fileStat = await fs.stat(fullPath);
+            const vidInfo = {
+              name: entry.name, path: fullPath, type: 'video',
+              size: fileStat.size, modified: fileStat.mtime.toISOString(),
+              folder: relDir
+            };
+            if (details) {
+              vidInfo.format = ext.slice(1);
+            }
+            videos.push(vidInfo);
+          } catch (e) { /* skip */ }
+        }
+      }
+    }
+  }
+
+  try {
+    const stat = await fs.stat(targetPath);
+    if (!stat.isDirectory()) {
+      throw Object.assign(new Error('Not a directory'), { code: 'ENOTDIR' });
+    }
+  } catch (e) {
+    throw e;
+  }
+
+  await walk(targetPath, 0);
+
+  // Sort
+  images.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+  videos.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+
+  const dirName = path.basename(targetPath) || targetPath;
+
+  return {
+    path: targetPath,
+    name: dirName,
+    folders: [],
+    images,
+    videos,
+    recursive: true
+  };
+}
+
+module.exports = { listDirectory, listRecursive, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS };

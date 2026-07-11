@@ -33,7 +33,7 @@ function useThumbSize(viewMode) {
   }, []);
 
   if (viewMode === 'list') return { size: width < 768 ? 120 : 200, fit: 'inside' };
-  if (viewMode === 'waterfall') {
+  if (viewMode === 'waterfall' || viewMode === 'all') {
     // Waterfall columns: 4 (1201+), 3 (769-1200), 2 (<769)
     // Thumb should be ~1.5x column width for sharp HiDPI display
     if (width < 769) return { size: 400, fit: 'inside' };
@@ -50,7 +50,7 @@ export default function ImageGrid({ images, onImageClick, viewMode }) {
 
   const getGridClass = () => {
     switch (viewMode) {
-      case 'waterfall': return 'media-grid media-waterfall';
+      case 'waterfall': case 'all': return 'media-grid media-waterfall';
       case 'list': return 'media-list';
       default: return 'media-grid media-grid-default';
     }
@@ -58,7 +58,7 @@ export default function ImageGrid({ images, onImageClick, viewMode }) {
 
   return (
     <div className="image-section">
-      <h3 className="section-title">🖼️ 图片 ({images.length})</h3>
+      <h3 className="section-title">🖼️ {viewMode === 'all' ? '全部图片' : '图片'} ({images.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
       <div className={getGridClass()}>
         {images.map((img, index) => (
           <MediaCard
@@ -80,7 +80,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode }) {
 
   const getGridClass = () => {
     switch (viewMode) {
-      case 'waterfall': return 'media-grid media-waterfall';
+      case 'waterfall': case 'all': return 'media-grid media-waterfall';
       case 'list': return 'media-list';
       default: return 'media-grid media-grid-default';
     }
@@ -88,7 +88,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode }) {
 
   return (
     <div className="image-section">
-      <h3 className="section-title">🎬 视频 ({videos.length})</h3>
+      <h3 className="section-title">🎬 {viewMode === 'all' ? '全部视频' : '视频'} ({videos.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
       <div className={getGridClass()}>
         {videos.map((vid, i) => (
           <MediaCard
@@ -126,6 +126,9 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode }) {
         </div>
         <div className="media-list-info">
           <span className="media-list-name" title={item.name}>{item.name}</span>
+          {item.folder && item.folder !== '.' && (
+            <span className="media-list-folder" title={item.folder}>📁 {item.folder}</span>
+          )}
           <span className="media-list-meta">
             {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
           </span>
@@ -154,6 +157,9 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode }) {
       </div>
       <div className="image-card-info">
         <span className="image-card-name" title={item.name}>{item.name}</span>
+        {item.folder && item.folder !== '.' && (
+          <span className="image-card-folder" title={item.folder}>📁 {item.folder}</span>
+        )}
         <span className="image-card-meta">
           {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
         </span>

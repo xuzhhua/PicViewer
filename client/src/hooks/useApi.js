@@ -54,6 +54,28 @@ export default function useApi() {
     }
   }, []);
 
+  // Browse all subdirectories recursively
+  const browseRecursive = useCallback(async (folderPath) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const encoded = encodePath(folderPath);
+      const url = `/api/browse/recursive?path=${encoded}&details=1`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Recursive browse failed');
+      }
+      const data = await res.json();
+      setBrowseData(data);
+    } catch (e) {
+      setError(e.message);
+      setBrowseData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Add a new root folder
   const addFolder = useCallback(async (folderPath) => {
     try {
@@ -132,6 +154,7 @@ export default function useApi() {
     pickFolder,
     fetchFolders,
     browse,
+    browseRecursive,
     addFolder,
     removeFolder,
     getThumbnailUrl,
