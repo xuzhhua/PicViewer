@@ -304,7 +304,7 @@ export default function App() {
         {favorites.length > 0 && (
           <div className="ft-section fav-section">
             <div className="ft-section-header">
-              <span>⭐ Favorites ({favorites.length})</span>
+              <span><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> Favorites ({favorites.length})</span>
             </div>
             <div className="ft-list">
               {favorites.map(fav => (
@@ -313,7 +313,7 @@ export default function App() {
                   const dir = fav.path.substring(0, fav.path.lastIndexOf(sep));
                   handleBrowse(dir);
                 }} title={fav.path}>
-                  <div className="ft-item-name">📷 {fav.name}</div>
+                  <div className="ft-item-name"><img src="/icons/camera.svg" alt="" width="13" height="13" style={{verticalAlign:'middle',marginRight:4,opacity:0.7}} /> {fav.name}</div>
                   <button className="ft-remove-btn" onClick={e => { e.stopPropagation(); removeFavorite(fav.id); }} title="移除收藏">✕</button>
                 </div>
               ))}
@@ -322,7 +322,7 @@ export default function App() {
         )}
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="切换主题">
-            {theme === 'dark' ? '🌙' : '☀️'}
+            <img src={theme === 'dark' ? '/icons/moon.svg' : '/icons/sun.svg'} alt="" width="18" height="18" />
           </button>
         </div>
       </aside>
@@ -332,7 +332,7 @@ export default function App() {
         {/* Topbar */}
         <div className="topbar">
           <button className="hamburger" onClick={() => setSidebarOpen(o => !o)}>
-            {sidebarOpen ? '✕' : '☰'}
+            <img src={sidebarOpen ? '/icons/close.svg' : '/icons/menu.svg'} alt="" width="20" height="20" />
           </button>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
@@ -364,7 +364,7 @@ export default function App() {
                   onChange={e => { const v = parseInt(e.target.value); setThumbSize(v); localStorage.setItem('picviewer-thumb-size', v); }} />
               </div>
 
-              <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)">🔄</button>
+              <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
             </>
           )}
 
@@ -388,7 +388,7 @@ export default function App() {
             <span className="action-bar-count">已选 {selectedPaths.size} 项</span>
             <button className="action-btn" onClick={selectAll}>全选</button>
             <button className="action-btn" onClick={clearSelection}>取消</button>
-            <button className="action-btn primary" onClick={handleBatchDownload}>⬇ 批量下载</button>
+            <button className="action-btn primary" onClick={handleBatchDownload}><img src="/icons/download.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 批量下载</button>
           </div>
         )}
 
@@ -404,7 +404,7 @@ export default function App() {
             <>
               {browseData.isSearch && (
                 <div className="search-result-header">
-                  <span>🔍 搜索 "<strong>{searchQuery}</strong>" — 找到 {browseData.total || (filteredImages.length + filteredVideos.length)} 个结果</span>
+                  <span><img src="/icons/search.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 搜索 "<strong>{searchQuery}</strong>" — 找到 {browseData.total || (filteredImages.length + filteredVideos.length)} 个结果</span>
                   {browseData.truncated && <span className="search-truncated">（结果已截断，请细化搜索词）</span>}
                   <button className="search-clear-btn" onClick={() => setSearchQuery('')}>✕ 清除</button>
                 </div>
@@ -412,7 +412,7 @@ export default function App() {
 
               {browseData.folders && browseData.folders.length > 0 && (
                 <div className="folder-section">
-                  <h3 className="section-title">📁 Folders</h3>
+                  <h3 className="section-title"><img src="/icons/folder-list.svg" alt="" width="16" height="16" className="title-icon" /> Folders</h3>
                   <div className="folder-grid">
                     {browseData.folders.map(folder => (
                       <div
@@ -420,7 +420,7 @@ export default function App() {
                         className="folder-card"
                         onClick={() => handleBrowse(folder.path)}
                       >
-                        <span className="folder-icon">📁</span>
+                        <span className="folder-icon"><img src="/icons/folder-open.svg" alt="" width="28" height="28" /></span>
                         <span className="folder-name">{folder.name}</span>
                       </div>
                     ))}
@@ -470,14 +470,14 @@ export default function App() {
 
               {(!browseData.folders || browseData.folders.length === 0) && allMedia.length === 0 && (
                 <div className="empty">
-                  <span className="icon">📭</span>
+                  <span className="icon"><img src="/icons/folder-open.svg" alt="" width="48" height="48" style={{opacity:0.4}} /></span>
                   <p>This folder is empty</p>
                 </div>
               )}
             </>
           ) : (
             <div className="empty">
-              <span className="icon">📂</span>
+              <span className="icon"><img src="/icons/picture-folder.svg" alt="" width="48" height="48" style={{opacity:0.4}} /></span>
               <p>Select a folder from the sidebar to start browsing</p>
               <p style={{ fontSize: 12, marginTop: 4 }}>Or click + to add a new folder</p>
             </div>
@@ -488,15 +488,15 @@ export default function App() {
       {/* Context menu */}
       {contextMenu && (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}>📋 复制路径</div>
-          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}>📂 在文件管理器中打开</div>
+          <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}><img src="/icons/note.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 复制路径</div>
+          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}><img src="/icons/folder-open.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 在文件管理器中打开</div>
           <div className="context-item" onClick={() => {
             const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path)))
               .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
             window.open(`/api/image/view?path=${enc}`, '_blank');
             setContextMenu(null);
-          }}>🔗 新标签页打开</div>
-          <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}>⭐ 添加到收藏</div>
+          }}><img src="/icons/chain.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 新标签页打开</div>
+          <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 添加到收藏</div>
           {contextMenu.item.type === 'image' && (
             <div className="context-item" onClick={async () => {
               try {
@@ -505,7 +505,7 @@ export default function App() {
                 await navigator.clipboard.write([new ClipboardItem({ [img.type]: img })]);
               } catch (_) {}
               setContextMenu(null);
-            }}>🖼️ 复制图片</div>
+            }}><img src="/icons/picture.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 复制图片</div>
           )}
           {contextMenu.item.folder && contextMenu.item.folder !== '.' && (
             <div className="context-item" onClick={() => {
@@ -513,7 +513,7 @@ export default function App() {
               const dir = contextMenu.item.path.substring(0, contextMenu.item.path.lastIndexOf(sep));
               handleBrowse(dir);
               setContextMenu(null);
-            }}>📁 跳转到所在文件夹</div>
+            }}><img src="/icons/folder.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 跳转到所在文件夹</div>
           )}
           <div className="context-separator" />
           <div className="context-item context-shortcut">

@@ -134,9 +134,9 @@ export default function IgnoredFolders({
   return (
     <div className={`ft-section ignored-section${collapsed ? ' collapsed' : ''}`}>
       <div className="ft-section-header ignored-header" onClick={toggleCollapse}>
-        <span className="ignored-toggle">{collapsed ? '▶' : '▼'}</span>
+        <span className="ignored-toggle"><img src={collapsed ? '/icons/caret-right.svg' : '/icons/caret-down.svg'} alt="" width="10" height="10" /></span>
         <span>
-          🚫 Ignored
+          <img src="/icons/folder-disabled.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> Ignored
           {count > 0 && <span className="ft-badge">{count}</span>}
         </span>
         <button
@@ -168,7 +168,7 @@ export default function IgnoredFolders({
                 disabled={picking}
                 title="Open folder picker"
               >
-                {picking ? '...' : '📁'}
+                {picking ? <span className="spinner" style={{width:14,height:14,borderWidth:2}} /> : <img src="/icons/folder-add.svg" alt="" width="16" height="16" />}
               </button>
             </div>
           )}
@@ -182,7 +182,7 @@ export default function IgnoredFolders({
           >
             {ignoredFolders.length === 0 ? (
               <div className="ignored-empty-hint">
-                {dragOver ? '📂 Drop to ignore' : 'Drag folders here or click +'}
+                {dragOver ? <><img src="/icons/folder-open.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> Drop to ignore</> : 'Drag folders here or click +'}
               </div>
             ) : (
               <div className="ft-list">
@@ -193,7 +193,7 @@ export default function IgnoredFolders({
                     title={`${folder.path}${!folder.exists ? ' (not found)' : ''}`}
                   >
                     <div className="ft-item-name">
-                      {!folder.exists ? '⚠️ ' : '🚫 '}
+                      {!folder.exists ? <img src="/icons/warning.svg" alt="" width="13" height="13" style={{verticalAlign:'middle',marginRight:4}} /> : <img src="/icons/folder-disabled.svg" alt="" width="13" height="13" style={{verticalAlign:'middle',marginRight:4}} />}
                       <span className="ignored-name">{folder.name}</span>
                       <span className="ignored-path">{folder.path}</span>
                     </div>

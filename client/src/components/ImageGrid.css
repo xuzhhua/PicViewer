@@ -7,6 +7,9 @@
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

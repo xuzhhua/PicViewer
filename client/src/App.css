@@ -15,7 +15,8 @@
 }
 
 .sidebar-header {
-  padding: 14px 16px;
+  padding: 0 16px;
+  height: var(--topbar-height);
   font-size: 18px;
   font-weight: 700;
   display: flex;
@@ -106,7 +107,6 @@
 
 /* === Inline icon alignment === */
 .crumb-icon,
-.title-icon,
 .thumb-icon,
 .lb-icon {
   vertical-align: middle;
@@ -115,12 +115,13 @@
   flex-shrink: 0;
 }
 
-.crumb-icon {
-  margin-right: 2px;
+.title-icon {
+  flex-shrink: 0;
+  display: block;
 }
 
-.title-icon {
-  margin-right: 4px;
+.crumb-icon {
+  margin-right: 2px;
 }
 
 .content {
@@ -273,6 +274,7 @@
 .fav-section {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  margin: 0 10px;
 }
 
 .fav-section .ft-list {

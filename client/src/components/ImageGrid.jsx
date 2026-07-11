@@ -95,7 +95,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
 
   return (
     <div className="image-section">
-      <h3 className="section-title">🎬 {viewMode === 'all' ? '全部视频' : '视频'} ({videos.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
+      <h3 className="section-title"><img src="/icons/video-camera.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部视频' : '视频'} ({videos.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
       <div className={getGridClass()}>
         {videos.map((vid, i) => (
           <MediaCard
@@ -145,12 +145,12 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
           <span className="media-list-name" title={item.name}>{item.name}</span>
           {item.folder && item.folder !== '.' && (
             <span className="media-list-folder" title={item.folder}>
-              📁 {item.folder}
+              <img src="/icons/folder.svg" alt="" width="12" height="12" style={{verticalAlign:'middle',marginRight:3}} /> {item.folder}
               {isSearch && onBrowseFolder && <button className="list-folder-btn" onClick={e => { e.stopPropagation(); const sep=item.path.includes('\\')?'\\':'/'; const dir=item.path.substring(0,item.path.lastIndexOf(sep)); onBrowseFolder(dir); }} title="打开文件夹">↗</button>}
             </span>
           )}
           <span className="media-list-meta">
-            {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
+            {isVideo && <><img src="/icons/video-camera.svg" alt="" width="12" height="12" style={{verticalAlign:'middle',marginRight:2,opacity:0.7}} /> </>}{formatSize(item.size)} · {formatDate(item.modified)}
           </span>
         </div>
         <div className="media-list-detail">
@@ -183,12 +183,12 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
         <span className="image-card-name" title={item.name}>{item.name}</span>
         {item.folder && item.folder !== '.' && (
           <span className="image-card-folder" title={item.folder}>
-            📁 {item.folder}
+            <img src="/icons/folder.svg" alt="" width="12" height="12" style={{verticalAlign:'middle',marginRight:3}} /> {item.folder}
             {isSearch && onBrowseFolder && <button className="card-folder-btn" onClick={e => { e.stopPropagation(); const sep=item.path.includes('\\')?'\\':'/'; const dir=item.path.substring(0,item.path.lastIndexOf(sep)); onBrowseFolder(dir); }} title="打开文件夹">↗</button>}
           </span>
         )}
         <span className="image-card-meta">
-          {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
+          {isVideo && <><img src="/icons/video-camera.svg" alt="" width="12" height="12" style={{verticalAlign:'middle',marginRight:2,opacity:0.7}} /> </>}{formatSize(item.size)} · {formatDate(item.modified)}
         </span>
       </div>
     </div>
@@ -211,7 +211,7 @@ function LazyThumbnail({ src, alt, isVideo }) {
   if (error) {
     return (
       <div className="thumb-error">
-        <span>{isVideo ? '🎬' : <img src="/icons/picture.svg" alt="" width="14" height="14" className="thumb-icon" />}</span>
+        <span>{isVideo ? <img src="/icons/video-camera.svg" alt="" width="14" height="14" className="thumb-icon" /> : <img src="/icons/picture.svg" alt="" width="14" height="14" className="thumb-icon" />}</span>
       </div>
     );
   }

@@ -189,23 +189,31 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   border: none;
   color: white;
-  font-size: 48px;
-  width: 56px;
-  height: 80px;
+  width: 48px;
+  height: 72px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s;
   z-index: 10;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+.lightbox-nav img {
+  opacity: 0.7;
+  transition: opacity 0.15s;
 }
 
 .lightbox-nav:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lightbox-nav:hover img {
+  opacity: 1;
 }
 
 .lightbox-prev {
@@ -353,9 +361,13 @@
   }
 
   .lightbox-nav {
-    width: 40px;
-    height: 56px;
-    font-size: 36px;
+    width: 36px;
+    height: 52px;
+  }
+
+  .lightbox-nav img {
+    width: 16px;
+    height: 16px;
   }
 
   .lightbox-prev { left: 4px; }

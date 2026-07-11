@@ -4,7 +4,7 @@ import './SearchBar.css';
 export default function SearchBar({ value, onChange }) {
   return (
     <div className="search-bar">
-      <span className="search-icon">🔍</span>
+      <span className="search-icon"><img src="/icons/search.svg" alt="" width="16" height="16" /></span>
       <input
         type="text"
         placeholder="搜索图片名称..."

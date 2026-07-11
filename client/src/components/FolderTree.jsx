@@ -125,14 +125,14 @@ export default function FolderTree({
     >
       {dragOver && (
         <div className="ft-drop-overlay">
-          <span>📂 Drop folder here</span>
+          <span><img src="/icons/folder-open.svg" alt="" width="18" height="18" style={{verticalAlign:'middle',marginRight:6}} /> Drop folder here</span>
         </div>
       )}
 
       <div className="ft-section">
         <div className="ft-section-header">
           <span>
-            📂 My Folders
+                <img src="/icons/picture-folder.svg" alt="" width="16" height="16" style={{verticalAlign:'middle',marginRight:6}} /> My Folders
             {folders.length > 0 && <span className="ft-badge">{folders.length}</span>}
           </span>
           <button
@@ -159,8 +159,9 @@ export default function FolderTree({
               className="ft-browse-btn"
               onClick={handleBrowse}
               disabled={picking}
+              title="浏览选择文件夹"
             >
-              {picking ? '...' : '📁'}
+              {picking ? <span className="spinner" style={{width:14,height:14,borderWidth:2}} /> : <img src="/icons/folder-add.svg" alt="" width="16" height="16" />}
             </button>
           </div>
         )}
@@ -180,13 +181,13 @@ export default function FolderTree({
                 onDrop={(e) => handleFolderDrop(e, folder.id)}
                 onDragEnd={handleFolderDragEnd}
               >
-                <span className="ft-drag-handle" title="拖拽排序">⋮⋮</span>
+                <span className="ft-drag-handle" title="拖拽排序"><img src="/icons/drag.svg" alt="" width="12" height="12" /></span>
                 <div
                   className="ft-item-name"
                   onClick={() => onBrowse(folder.path)}
                   title={folder.path}
                 >
-                  <span className="ft-icon">📂</span> {folder.name}
+                  <span className="ft-icon"><img src="/icons/folder-open.svg" alt="" width="16" height="16" /></span> {folder.name}
                 </div>
                 <button
                   className="ft-remove-btn"
@@ -206,14 +207,14 @@ export default function FolderTree({
         <div className="ft-section">
           <div className="ft-section-header">
             <span>
-              📁 {browseData.name || 'Subfolders'}
+                <img src="/icons/folder-list.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> {browseData.name || 'Subfolders'}
               <span className="ft-badge">{browseData.folders.length}</span>
             </span>
           </div>
           <div className="ft-list">
             {currentPath && (
               <div className="ft-item ft-back" onClick={onBackToRoot}>
-                <span className="ft-icon">⬆</span> Back to root
+                <span className="ft-icon"><img src="/icons/up.svg" alt="" width="14" height="14" /></span> Back to root
               </div>
             )}
             {browseData.folders.map(folder => (
@@ -223,7 +224,7 @@ export default function FolderTree({
                 onClick={() => onBrowse(folder.path)}
                 title={folder.path}
               >
-                <span className="ft-icon">📁</span> {folder.name}
+                <span className="ft-icon"><img src="/icons/folder.svg" alt="" width="14" height="14" /></span> {folder.name}
               </div>
             ))}
           </div>

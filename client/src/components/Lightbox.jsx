@@ -260,7 +260,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       {/* Top bar */}
       <div className="lightbox-topbar" onClick={e => e.stopPropagation()}>
         <div className="lightbox-info">
-          <span className="lightbox-type">{isVideo ? '🎬' : <img src="/icons/picture.svg" alt="" width="16" height="16" className="lb-icon" />}</span>
+          <span className="lightbox-type">{isVideo ? <img src="/icons/video-camera.svg" alt="" width="16" height="16" className="lb-icon" /> : <img src="/icons/picture.svg" alt="" width="16" height="16" className="lb-icon" />}</span>
           <span className="lightbox-filename">{item.name}</span>
           <span className="lightbox-counter">{currentIndex + 1} / {images.length}</span>
           {zoom !== 1 && <span className="lightbox-zoom-label">{Math.round(zoom * 100)}%</span>}
@@ -269,7 +269,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
           {!isVideo && (
             <button className={`lb-btn ${slideshow ? 'active' : ''}`}
               onClick={() => setSlideshow(s => !s)} title="幻灯片 (空格)">
-              {slideshow ? '⏸' : '▶'}
+              <img src={slideshow ? '/icons/pause.svg' : '/icons/play.svg'} alt="" width="16" height="16" />
             </button>
           )}
           {slideshow && !isVideo && (
@@ -283,21 +283,21 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
           )}
           {!isVideo && (
             <>
-              <button className="lb-btn" onClick={() => setRotation(r => (r - 90 + 360) % 360)} title="左旋 (L)">↺</button>
-              <button className="lb-btn" onClick={() => setRotation(r => (r + 90) % 360)} title="右旋 (R)">↻</button>
+              <button className="lb-btn" onClick={() => setRotation(r => (r - 90 + 360) % 360)} title="左旋 (L)"><img src="/icons/go-back.svg" alt="" width="16" height="16" /></button>
+              <button className="lb-btn" onClick={() => setRotation(r => (r + 90) % 360)} title="右旋 (R)"><img src="/icons/go-back.svg" alt="" width="16" height="16" style={{transform:'scaleX(-1)'}} /></button>
             </>
           )}
           {!isVideo && (
-            <button className="lb-btn" onClick={resetView} title="重置 (0)">🔄</button>
+            <button className="lb-btn" onClick={resetView} title="重置 (0)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
           )}
           <button className="lb-btn" onClick={async () => {
             const fav = favorites?.find(f => f.path === item.path);
             fav ? onRemoveFavorite?.(fav.id) : onAddFavorite?.(item);
           }} title={favorites?.find(f => f.path === item.path) ? '取消收藏' : '添加收藏'}>
-            {favorites?.find(f => f.path === item.path) ? '⭐' : '☆'}
+            <img src="/icons/star.svg" alt="" width="16" height="16" style={{opacity: favorites?.find(f => f.path === item.path) ? 1 : 0.3}} />
           </button>
-          <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息 (I)">ℹ️</button>
-          <button className="lb-btn" onClick={onClose} title="关闭 (Esc)">✕</button>
+          <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息 (I)"><img src="/icons/info.svg" alt="" width="16" height="16" /></button>
+          <button className="lb-btn" onClick={onClose} title="关闭 (Esc)"><img src="/icons/close.svg" alt="" width="16" height="16" /></button>
         </div>
       </div>
 
@@ -309,7 +309,9 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
         onTouchEnd={handleTouchEnd}
       >
         {images.length > 1 && (
-          <button className="lightbox-nav lightbox-prev" onClick={goPrev}>‹</button>
+          <button className="lightbox-nav lightbox-prev" onClick={goPrev} aria-label="上一张">
+            <img src="/icons/chevron-left.svg" alt="" width="20" height="20" />
+          </button>
         )}
 
         <div className="lightbox-media-wrap">
@@ -349,7 +351,9 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
         </div>
 
         {images.length > 1 && (
-          <button className="lightbox-nav lightbox-next" onClick={goNext}>›</button>
+          <button className="lightbox-nav lightbox-next" onClick={goNext} aria-label="下一张">
+            <img src="/icons/chevron-right.svg" alt="" width="20" height="20" />
+          </button>
         )}
       </div>
 
@@ -360,7 +364,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
             className={`lightbox-thumb ${i === currentIndex ? 'active' : ''}`}
             onClick={() => { setLoaded(false); setVideoLoading(true); resetView(); onNavigate(i); }}>
             {img.type === 'video'
-              ? <div className="thumb-video-placeholder"><span>▶</span></div>
+              ? <div className="thumb-video-placeholder"><img src="/icons/play.svg" alt="" width="16" height="16" /></div>
               : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />}
           </div>
         ))}
@@ -378,7 +382,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       {/* Info panel */}
       {showInfo && (
         <div className="lightbox-info-panel" onClick={e => e.stopPropagation()}>
-          <h4>📋 媒体信息</h4>
+          <h4><img src="/icons/note.svg" alt="" width="16" height="16" style={{verticalAlign:'middle',marginRight:6}} /> 媒体信息</h4>
           <div className="info-grid">
             <span className="info-label">文件名</span>
             <span className="info-value">{item.name}</span>
