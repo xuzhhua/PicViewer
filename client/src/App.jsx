@@ -1,10 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import FolderTree from './components/FolderTree';
-import ImageGrid from './components/ImageGrid';
+import ImageGrid, { VideoGrid } from './components/ImageGrid';
 import Lightbox from './components/Lightbox';
 import SearchBar from './components/SearchBar';
 import useApi from './hooks/useApi';
 import './App.css';
+
+const VIEW_MODES = [
+  { key: 'grid', icon: '⊞', label: '网格' },
+  { key: 'waterfall', icon: '▥', label: '瀑布' },
+  { key: 'list', icon: '☰', label: '列表' },
+];
 
 export default function App() {
   const { folders, browseData, loading, error, addFolder, removeFolder, browse, pickFolder } = useApi();
@@ -13,18 +19,19 @@ export default function App() {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
 
   const handleBrowse = useCallback((folderPath) => {
     setCurrentPath(folderPath);
     setSearchQuery('');
     setSidebarOpen(false);
-    browse(folderPath);
+    browse(folderPath, true);
   }, [browse]);
 
   const handleBackToRoot = useCallback(() => {
     setCurrentPath('');
     setSearchQuery('');
-    browse('');
+    browse('', true);
   }, [browse]);
 
   const handleOpenLightbox = useCallback((index) => {
@@ -116,6 +123,22 @@ export default function App() {
             {sidebarOpen ? '✕' : '☰'}
           </button>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
+
+          {browseData && (
+            <div className="view-mode-switcher">
+              {VIEW_MODES.map(m => (
+                <button
+                  key={m.key}
+                  className={`vm-btn${viewMode === m.key ? ' active' : ''}`}
+                  onClick={() => setViewMode(m.key)}
+                  title={m.label}
+                >
+                  {m.icon}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="breadcrumb">
             <span onClick={handleBackToRoot}>🏠 Root</span>
             {breadcrumbs.map((crumb, i) => (
@@ -160,32 +183,16 @@ export default function App() {
                 <ImageGrid
                   images={filteredImages}
                   onImageClick={(i) => handleOpenLightbox(i)}
+                  viewMode={viewMode}
                 />
               )}
 
               {filteredVideos.length > 0 && (
-                <div className="image-section">
-                  <h3 className="section-title">🎬 Videos ({filteredVideos.length})</h3>
-                  <div className="image-grid">
-                    {filteredVideos.map((vid, i) => (
-                      <div
-                        key={vid.path}
-                        className="image-card"
-                        onClick={() => handleOpenLightbox(filteredImages.length + i)}
-                      >
-                        <div className="image-card-thumb">
-                          <div className="thumb-placeholder">
-                            <span style={{ fontSize: 40, opacity: 0.6 }}>▶</span>
-                          </div>
-                        </div>
-                        <div className="image-card-info">
-                          <span className="image-card-name" title={vid.name}>{vid.name}</span>
-                          <span className="image-card-meta">🎬 Video</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <VideoGrid
+                  videos={filteredVideos}
+                  onVideoClick={(i) => handleOpenLightbox(filteredImages.length + i)}
+                  viewMode={viewMode}
+                />
               )}
 
               {(!browseData.folders || browseData.folders.length === 0) && allMedia.length === 0 && (

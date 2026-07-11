@@ -128,12 +128,42 @@
 }
 
 /* Video */
+.lightbox-video-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .lightbox-video {
   max-width: 90vw;
   max-height: 80vh;
   border-radius: 4px;
   outline: none;
   background: #000;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.lightbox-video.loaded {
+  opacity: 1;
+}
+
+.lightbox-video-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 5;
+}
+
+.lightbox-video-loading-text {
+  color: var(--text-secondary, #999);
+  font-size: 14px;
 }
 
 .lightbox-loading {

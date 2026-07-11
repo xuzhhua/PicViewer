@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 const { readData } = require('../data/store');
 
 const IMAGE_EXTENSIONS = new Set([
@@ -26,7 +27,8 @@ function isPathAllowed(targetPath, rootFolders) {
 
 // If no root folders configured, return root folders info
 // If targetPath is empty, list configured root folders as top-level items
-async function listDirectory(targetPath) {
+async function listDirectory(targetPath, options = {}) {
+  const { details = false } = options;
   const rootFolders = readData();
 
   // If no path specified, return the list of root folders
@@ -80,18 +82,31 @@ async function listDirectory(targetPath) {
       if (IMAGE_EXTENSIONS.has(ext)) {
         try {
           const fileStat = await fs.stat(fullPath);
-          images.push({
+          const imgInfo = {
             name: entry.name, path: fullPath, type: 'image',
             size: fileStat.size, modified: fileStat.mtime.toISOString()
-          });
+          };
+          if (details) {
+            try {
+              const meta = await sharp(fullPath).metadata();
+              imgInfo.width = meta.width || 0;
+              imgInfo.height = meta.height || 0;
+              imgInfo.format = meta.format || ext.slice(1);
+            } catch (e) { /* ignore metadata errors */ }
+          }
+          images.push(imgInfo);
         } catch (e) { /* skip */ }
       } else if (VIDEO_EXTENSIONS.has(ext)) {
         try {
           const fileStat = await fs.stat(fullPath);
-          videos.push({
+          const vidInfo = {
             name: entry.name, path: fullPath, type: 'video',
             size: fileStat.size, modified: fileStat.mtime.toISOString()
-          });
+          };
+          if (details) {
+            vidInfo.format = ext.slice(1);
+          }
+          videos.push(vidInfo);
         } catch (e) { /* skip */ }
       }
     }

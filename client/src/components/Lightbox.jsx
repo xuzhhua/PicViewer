@@ -10,6 +10,7 @@ const SWIPE_THRESHOLD = 60;
 export default function Lightbox({ images, currentIndex, onClose, onNavigate }) {
   const { getImageUrl } = useApi();
   const [loaded, setLoaded] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -41,6 +42,11 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
   if (!item) { onClose(); return null; }
   const isVideo = item.type === 'video';
 
+  // Set video loading state when item changes
+  useEffect(() => {
+    if (isVideo) setVideoLoading(true);
+  }, [item?.path, isVideo]);
+
   const resetView = useCallback(() => {
     setZoom(1); setPanX(0); setPanY(0);
     zoomRef.current = 1; panRef.current = { x: 0, y: 0 };
@@ -48,12 +54,12 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
   const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
   const goNext = useCallback(() => {
-    setLoaded(false); resetView();
+    setLoaded(false); setVideoLoading(true); resetView();
     onNavigate((currentIndex + 1) % images.length);
   }, [currentIndex, images.length, onNavigate, resetView]);
 
   const goPrev = useCallback(() => {
-    setLoaded(false); resetView();
+    setLoaded(false); setVideoLoading(true); resetView();
     onNavigate((currentIndex - 1 + images.length) % images.length);
   }, [currentIndex, images.length, onNavigate, resetView]);
 
@@ -253,9 +259,19 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
 
         <div className="lightbox-media-wrap">
           {isVideo ? (
-            <video key={item.path} className="lightbox-video"
-              src={getImageUrl(item.path)} controls autoPlay playsInline
-              onLoadedData={() => setLoaded(true)} />
+            <div className="lightbox-video-container">
+              {videoLoading && (
+                <div className="lightbox-video-loading">
+                  <div className="spinner" />
+                  <span className="lightbox-video-loading-text">正在处理视频...</span>
+                </div>
+              )}
+              <video key={item.path}
+                className={`lightbox-video ${!videoLoading ? 'loaded' : ''}`}
+                src={getImageUrl(item.path)} controls autoPlay playsInline
+                onLoadedData={() => { setLoaded(true); setVideoLoading(false); }}
+                onError={() => setVideoLoading(false)} />
+            </div>
           ) : (
             <div
               className="lightbox-image-container"
@@ -287,7 +303,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
         {images.map((img, i) => (
           <div key={img.path}
             className={`lightbox-thumb ${i === currentIndex ? 'active' : ''}`}
-            onClick={() => { setLoaded(false); resetView(); onNavigate(i); }}>
+            onClick={() => { setLoaded(false); setVideoLoading(true); resetView(); onNavigate(i); }}>
             {img.type === 'video'
               ? <div className="thumb-video-placeholder"><span>▶</span></div>
               : <img src={getImageUrl(img.path)} alt="" loading="lazy" />}

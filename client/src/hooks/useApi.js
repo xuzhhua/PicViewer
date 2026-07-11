@@ -29,12 +29,16 @@ export default function useApi() {
   }, []);
 
   // Browse a directory
-  const browse = useCallback(async (folderPath) => {
+  const browse = useCallback(async (folderPath, details = false) => {
     setLoading(true);
     setError(null);
     try {
       const encoded = encodePath(folderPath);
-      const url = encoded ? `/api/browse?path=${encoded}` : '/api/browse';
+      const params = new URLSearchParams();
+      if (encoded) params.set('path', encoded);
+      if (details) params.set('details', '1');
+      const qs = params.toString();
+      const url = qs ? `/api/browse?${qs}` : '/api/browse';
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();
@@ -86,9 +90,9 @@ export default function useApi() {
   }, [fetchFolders]);
 
   // Get thumbnail URL
-  const getThumbnailUrl = useCallback((filePath, size = 256) => {
+  const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover') => {
     const encoded = encodePath(filePath);
-    return `/api/image/thumbnail?path=${encoded}&size=${size}`;
+    return `/api/image/thumbnail?path=${encoded}&size=${size}&fit=${fit}`;
   }, []);
 
   // Get original image URL

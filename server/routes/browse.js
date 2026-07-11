@@ -7,13 +7,14 @@ const browseService = require('../services/browse');
 router.get('/', async (req, res) => {
   try {
     const encodedPath = req.query.path || '';
+    const details = req.query.details === '1';
     let dirPath = '';
 
     if (encodedPath) {
       dirPath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
     }
 
-    const result = await browseService.listDirectory(dirPath);
+    const result = await browseService.listDirectory(dirPath, { details });
     res.json(result);
   } catch (err) {
     if (err.code === 'ENOENT') {
