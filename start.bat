@@ -6,37 +6,17 @@ echo        PicViewer Image Browser
 echo ========================================
 echo.
 
-:: Read port from config file
+:: Read port from config file using Node.js (robust JSON parsing)
 set CONFIG_PORT=
-for /f "tokens=2 delims=:," %%a in ('findstr "port" "%~dp0server\config.json" 2^>nul') do (
-    set CONFIG_PORT=%%a
-    goto :got_port
-)
-:got_port
-:: Trim spaces
-set CONFIG_PORT=%CONFIG_PORT: =%
+for /f %%a in ('node -e "try{process.stdout.write(String(require('./server/config.json').port||''))}catch(e){}" 2^>nul') do set CONFIG_PORT=%%a
 
 :: Fallback to default
 if "%CONFIG_PORT%"=="" set CONFIG_PORT=3456
 
-echo Current port: %CONFIG_PORT%
+set PORT=%CONFIG_PORT%
+echo Port: %PORT%
 echo.
 
-set /p CUSTOM_PORT="Enter port (press Enter for %CONFIG_PORT%): "
-
-if not "%CUSTOM_PORT%"=="" (
-    set PORT=%CUSTOM_PORT%
-) else (
-    set PORT=%CONFIG_PORT%
-)
-
-:: Save new port to config
-if not "%CUSTOM_PORT%"=="" (
-    echo { "port": %CUSTOM_PORT% } > "%~dp0server\config.json"
-    echo Port saved to config.json.
-)
-
-echo.
 echo Building frontend...
 cd /d "%~dp0"
 
