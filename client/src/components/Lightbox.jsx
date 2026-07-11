@@ -407,6 +407,3 @@ function formatDuration(seconds) {
   const s = Math.floor(seconds % 60);
   return m > 0 ? `${m}分${s}秒` : `${s}秒`;
 }
-    </div>
-  );
-}
