@@ -1,0 +1,98 @@
+.ignored-section {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.ignored-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ignored-header:hover {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.ignored-toggle {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.ignored-section.collapsed .ignored-drop-zone,
+.ignored-section.collapsed .ft-add-form {
+  display: none;
+}
+
+.ignored-drop-zone {
+  min-height: 40px;
+  border: 2px dashed transparent;
+  border-radius: 6px;
+  margin: 0 12px 8px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ignored-drop-zone.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+}
+
+.ignored-drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 74, 158, 255), 0.08);
+}
+
+.ignored-empty-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ignored-drop-zone.drag-over .ignored-empty-hint {
+  color: var(--accent);
+}
+
+.ignored-item {
+  opacity: 0.85;
+}
+
+.ignored-item:hover {
+  opacity: 1;
+}
+
+.ignored-item .ft-item-name {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ignored-name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ignored-path {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.ignored-item.missing {
+  opacity: 0.55;
+}
+
+.ignored-item.missing .ignored-name {
+  text-decoration: line-through;
+}

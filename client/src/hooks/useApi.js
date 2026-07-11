@@ -14,6 +14,7 @@ function encodePath(filePath) {
 export default function useApi() {
   const [folders, setFolders] = useState([]);
   const [browseData, setBrowseData] = useState(null);
+  const [ignoredFolders, setIgnoredFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -156,14 +157,76 @@ export default function useApi() {
     }
   }, [addFolder]);
 
+  const fetchIgnored = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ignored');
+      const data = await res.json();
+      setIgnoredFolders(data);
+    } catch (e) {
+      console.error('Failed to fetch ignored folders:', e);
+    }
+  }, []);
+
+  const addIgnored = useCallback(async (folderPath) => {
+    try {
+      const res = await fetch('/api/ignored', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: folderPath })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Add ignored failed');
+      }
+      await fetchIgnored();
+      return true;
+    } catch (e) {
+      setError(e.message);
+      return false;
+    }
+  }, [fetchIgnored]);
+
+  const removeIgnored = useCallback(async (id) => {
+    try {
+      const res = await fetch(`/api/ignored/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Remove ignored failed');
+      }
+      await fetchIgnored();
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [fetchIgnored]);
+
+  // Open native folder picker for ignored folders
+  const pickIgnoredFolder = useCallback(async () => {
+    try {
+      const res = await fetch('/api/folders/pick', { method: 'POST' });
+      const data = await res.json();
+      if (data.path) {
+        const success = await addIgnored(data.path);
+        if (!success) return null;
+        return data.path;
+      }
+      return null;
+    } catch (e) {
+      console.error('pickIgnoredFolder error:', e);
+      setError(e.message || 'Picker failed');
+      return null;
+    }
+  }, [addIgnored]);
+
   // Initialize
   useEffect(() => {
     fetchFolders();
+    fetchIgnored();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     folders,
     browseData,
+    ignoredFolders,
     loading,
     error,
     pickFolder,
@@ -173,6 +236,10 @@ export default function useApi() {
     addFolder,
     removeFolder,
     reorderFolders,
+    fetchIgnored,
+    addIgnored,
+    removeIgnored,
+    pickIgnoredFolder,
     getThumbnailUrl,
     getImageUrl
   };

@@ -13,6 +13,7 @@
   --text-muted: #888;
   --accent: #4a9eff;
   --accent-hover: #3a8eef;
+  --accent-rgb: 74, 158, 255;
   --danger: #e05555;
   --sidebar-width: 280px;
   --topbar-height: 48px;
@@ -27,6 +28,7 @@
   --text-muted: #777;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
+  --accent-rgb: 37, 99, 235;
   --danger: #dc2626;
 }
 

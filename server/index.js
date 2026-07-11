@@ -7,6 +7,7 @@ const foldersRouter = require('./routes/folders');
 const browseRouter = require('./routes/browse');
 const imageRouter = require('./routes/image');
 const downloadRouter = require('./routes/download');
+const ignoredRouter = require('./routes/ignored');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/folders', foldersRouter);
 app.use('/api/browse', browseRouter);
 app.use('/api/image', imageRouter);
 app.use('/api/download', downloadRouter);
+app.use('/api/ignored', ignoredRouter);
 
 // Serve React build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

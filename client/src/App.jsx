@@ -3,6 +3,7 @@ import FolderTree from './components/FolderTree';
 import ImageGrid, { VideoGrid } from './components/ImageGrid';
 import Lightbox from './components/Lightbox';
 import SearchBar from './components/SearchBar';
+import IgnoredFolders from './components/IgnoredFolders';
 import useApi from './hooks/useApi';
 import './App.css';
 
@@ -45,7 +46,7 @@ function sortMedia(items, sortBy) {
 }
 
 export default function App() {
-  const { folders, browseData, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder } = useApi();
+  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -228,6 +229,12 @@ export default function App() {
           onRemoveFolder={removeFolder}
           onPickFolder={pickFolder}
           onReorderFolders={reorderFolders}
+        />
+        <IgnoredFolders
+          ignoredFolders={ignoredFolders}
+          onAddIgnored={addIgnored}
+          onRemoveIgnored={removeIgnored}
+          onPickIgnored={pickIgnoredFolder}
         />
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="切换主题">

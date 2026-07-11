@@ -321,6 +321,19 @@ function serveVideoThumbnailPlaceholder(size, res) {
   res.end(svg);
 }
 
+// SVG placeholder for broken/corrupted images
+function serveBrokenImagePlaceholder(size, res) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <rect width="${size}" height="${size}" fill="#2d2d2d"/>
+    <rect x="${size*0.2}" y="${size*0.2}" width="${size*0.6}" height="${size*0.6}" rx="8" fill="none" stroke="#666" stroke-width="2" stroke-dasharray="${size*0.08},${size*0.06}"/>
+    <text x="${size*0.5}" y="${size*0.48}" text-anchor="middle" fill="#999" font-size="${Math.max(size*0.12, 12)}" font-family="Arial, sans-serif">Broken</text>
+    <text x="${size*0.5}" y="${size*0.62}" text-anchor="middle" fill="#888" font-size="${Math.max(size*0.08, 9)}" font-family="Arial, sans-serif">Image</text>
+  </svg>`;
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.end(svg);
+}
+
 // Generate and serve thumbnail
 async function serveThumbnail(filePath, size, fit, res) {
   if (!isPathAllowed(filePath)) {
@@ -354,6 +367,15 @@ async function serveThumbnail(filePath, size, fit, res) {
     // Cache miss or error, generate new thumbnail
   }
 
+  // Check if this file was previously marked as broken (corrupt image)
+  try {
+    await fs.access(cacheKey + '.broken', fs.constants.F_OK);
+    // Known broken file — serve placeholder immediately without retrying sharp
+    return serveBrokenImagePlaceholder(size, res);
+  } catch (_) {
+    // No broken marker, proceed with thumbnail generation
+  }
+
   try {
     // Generate thumbnail with sharp
     const resizeOpts = fit === 'inside'
@@ -374,7 +396,11 @@ async function serveThumbnail(filePath, size, fit, res) {
   } catch (sharpErr) {
     // If sharp fails (corrupt image, unsupported format), serve a placeholder
     console.error(`Thumbnail generation failed for ${filePath}:`, sharpErr.message);
-    throw sharpErr;
+    // Write a .broken marker so we don't retry this file (skip cache check next time)
+    try {
+      await fs.writeFile(cacheKey + '.broken', '');
+    } catch (_) { /* non-critical */ }
+    serveBrokenImagePlaceholder(size, res);
   }
 }
 

@@ -3,7 +3,7 @@ const fsSync = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const { spawn } = require('child_process');
-const { readData } = require('../data/store');
+const { readData, readIgnored } = require('../data/store');
 
 const IMAGE_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp',
@@ -85,8 +85,18 @@ function isPathAllowed(targetPath, rootFolders) {
   });
 }
 
+// Check if a path (or its parent chain) is in the ignored list
+function isIgnored(targetPath) {
+  const ignored = readIgnored();
+  if (ignored.length === 0) return false;
+  const normalized = path.normalize(targetPath);
+  return ignored.some(entry => {
+    const ignoredNorm = path.normalize(entry.path);
+    return normalized.startsWith(ignoredNorm) || normalized === ignoredNorm;
+  });
+}
+
 // If no root folders configured, return root folders info
-// If targetPath is empty, list configured root folders as top-level items
 async function listDirectory(targetPath, options = {}) {
   const { details = false } = options;
   const rootFolders = readData();
@@ -135,6 +145,8 @@ async function listDirectory(targetPath, options = {}) {
     if (entry.isDirectory()) {
       try {
         await fs.access(fullPath, fs.constants.R_OK);
+        // Skip ignored folders
+        if (isIgnored(fullPath)) continue;
         folders.push({ name: entry.name, path: fullPath });
       } catch (e) { /* skip */ }
     } else if (entry.isFile()) {
@@ -214,6 +226,8 @@ async function listRecursive(targetPath, options = {}) {
       const relDir = path.relative(targetPath, dirPath) || '.';
 
       if (entry.isDirectory()) {
+        // Skip ignored folders
+        if (isIgnored(fullPath)) continue;
         await walk(fullPath, depth + 1);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
