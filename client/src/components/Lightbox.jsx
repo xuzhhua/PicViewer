@@ -12,6 +12,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
   const [loaded, setLoaded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -242,6 +243,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
           {!isVideo && (
             <button className="lb-btn" onClick={resetView} title="Reset zoom">🔄</button>
           )}
+          <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息">ℹ️</button>
           <button className="lb-btn" onClick={onClose} title="Close">✕</button>
         </div>
       </div>
@@ -317,7 +319,94 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
         {!isVideo && <span>Pinch Zoom</span>}
         {!isVideo && <span>Drag Pan</span>}
         <span>Esc Close</span>
+        <span>ℹ Info</span>
       </div>
+
+      {/* Info panel */}
+      {showInfo && (
+        <div className="lightbox-info-panel" onClick={e => e.stopPropagation()}>
+          <h4>📋 媒体信息</h4>
+          <div className="info-grid">
+            <span className="info-label">文件名</span>
+            <span className="info-value">{item.name}</span>
+
+            <span className="info-label">类型</span>
+            <span className="info-value">{isVideo ? '视频' : '图片'}</span>
+
+            {item.format && <>
+              <span className="info-label">格式</span>
+              <span className="info-value">{item.format.toUpperCase()}</span>
+            </>}
+
+            {item.width && item.height && <>
+              <span className="info-label">尺寸</span>
+              <span className="info-value">{item.width} × {item.height}</span>
+            </>}
+
+            <span className="info-label">文件大小</span>
+            <span className="info-value">{formatFileSize(item.size)}</span>
+
+            <span className="info-label">修改日期</span>
+            <span className="info-value">{formatDate(item.modified)}</span>
+
+            {isVideo && item.duration && <>
+              <span className="info-label">时长</span>
+              <span className="info-value">{formatDuration(item.duration)}</span>
+            </>}
+
+            {isVideo && item.videoCodec && <>
+              <span className="info-label">编码</span>
+              <span className="info-value">{item.videoCodec}</span>
+            </>}
+
+            {isVideo && item.bitrate > 0 && <>
+              <span className="info-label">码率</span>
+              <span className="info-value">{Math.round(item.bitrate / 1000)} kbps</span>
+            </>}
+
+            {!isVideo && item.colorSpace && <>
+              <span className="info-label">色彩空间</span>
+              <span className="info-value">{item.colorSpace}</span>
+            </>}
+
+            {!isVideo && item.channels != null && <>
+              <span className="info-label">通道</span>
+              <span className="info-value">{item.channels} {item.hasAlpha ? '(含透明)' : ''}</span>
+            </>}
+
+            {item.folder && item.folder !== '.' && <>
+              <span className="info-label">所在目录</span>
+              <span className="info-value">{item.folder}</span>
+            </>}
+
+            <span className="info-label">完整路径</span>
+            <span className="info-value info-path">{item.path}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('zh-CN');
+}
+
+function formatDuration(seconds) {
+  if (!seconds) return '-';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m > 0 ? `${m}分${s}秒` : `${s}秒`;
+}
     </div>
   );
 }

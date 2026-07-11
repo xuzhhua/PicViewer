@@ -9,12 +9,15 @@ export default function FolderTree({
   onBackToRoot,
   onAddFolder,
   onRemoveFolder,
-  onPickFolder
+  onPickFolder,
+  onReorderFolders
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newPath, setNewPath] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const handleAdd = async () => {
     if (!newPath.trim()) return;
@@ -69,6 +72,45 @@ export default function FolderTree({
     }
   }, [onPickFolder]);
 
+  // Folder reorder drag handlers
+  const handleFolderDragStart = useCallback((e, folderId) => {
+    setDragId(folderId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', folderId);
+  }, []);
+
+  const handleFolderDragOver = useCallback((e, folderId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (folderId !== dragId) {
+      setDragOverId(folderId);
+    }
+  }, [dragId]);
+
+  const handleFolderDragLeave = useCallback(() => {
+    setDragOverId(null);
+  }, []);
+
+  const handleFolderDrop = useCallback((e, targetId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragId(null);
+    setDragOverId(null);
+
+    if (!dragId || dragId === targetId) return;
+
+    const ids = folders.map(f => f.id);
+    const fromIdx = ids.indexOf(dragId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    // Reorder: remove fromIdx, insert at toIdx
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, dragId);
+
+    onReorderFolders?.(ids);
+  }, [dragId, folders, onReorderFolders]);
+
   return (
     <div
       className={`folder-tree${dragOver ? ' drag-over' : ''}`}
@@ -122,8 +164,15 @@ export default function FolderTree({
             folders.map(folder => (
               <div
                 key={folder.id}
-                className={`ft-item ${currentPath === folder.path ? 'active' : ''}`}
+                className={`ft-item ${currentPath === folder.path ? 'active' : ''}${dragOverId === folder.id ? ' drag-target' : ''}`}
+                draggable
+                onDragStart={(e) => handleFolderDragStart(e, folder.id)}
+                onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+                onDragLeave={handleFolderDragLeave}
+                onDrop={(e) => handleFolderDrop(e, folder.id)}
+                onDragEnd={() => { setDragId(null); setDragOverId(null); }}
               >
+                <span className="ft-drag-handle" title="拖拽排序">⋮⋮</span>
                 <div
                   className="ft-item-name"
                   onClick={() => onBrowse(folder.path)}

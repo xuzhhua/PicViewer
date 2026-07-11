@@ -45,7 +45,7 @@ function useThumbSize(viewMode) {
   return { size: 300, fit: 'cover' };
 }
 
-export default function ImageGrid({ images, onImageClick, viewMode }) {
+export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu }) {
   const { getThumbnailUrl } = useApi();
 
   const getGridClass = () => {
@@ -68,6 +68,9 @@ export default function ImageGrid({ images, onImageClick, viewMode }) {
             onClick={onImageClick}
             getThumbnailUrl={getThumbnailUrl}
             viewMode={viewMode}
+            isSelected={selectedPaths?.has(img.path)}
+            onToggleSelect={onToggleSelect}
+            onContextMenu={onContextMenu}
           />
         ))}
       </div>
@@ -75,7 +78,7 @@ export default function ImageGrid({ images, onImageClick, viewMode }) {
   );
 }
 
-export function VideoGrid({ videos, onVideoClick, viewMode }) {
+export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu }) {
   const { getThumbnailUrl } = useApi();
 
   const getGridClass = () => {
@@ -98,6 +101,9 @@ export function VideoGrid({ videos, onVideoClick, viewMode }) {
             onClick={onVideoClick}
             getThumbnailUrl={getThumbnailUrl}
             viewMode={viewMode}
+            isSelected={selectedPaths?.has(vid.path)}
+            onToggleSelect={onToggleSelect}
+            onContextMenu={onContextMenu}
           />
         ))}
       </div>
@@ -105,7 +111,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode }) {
   );
 }
 
-function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode }) {
+function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu }) {
   const isVideo = item.type === 'video';
   const { size: thumbSize, fit: thumbFit } = useThumbSize(viewMode);
 
@@ -114,9 +120,13 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode }) {
     const fmt = item.format ? item.format.toUpperCase() : '';
     return (
       <div
-        className="media-list-item"
+        className={`media-list-item${isSelected ? ' selected' : ''}`}
         onClick={() => onClick(index)}
+        onContextMenu={(e) => onContextMenu?.(e, item)}
       >
+        <div className="media-check" onClick={(e) => onToggleSelect?.(item.path, e)}>
+          <input type="checkbox" checked={!!isSelected} readOnly />
+        </div>
         <div className="media-list-thumb">
           <LazyThumbnail
             src={getThumbnailUrl(item.path, thumbSize, thumbFit)}
@@ -145,10 +155,14 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode }) {
 
   return (
     <div
-      className="image-card"
+      className={`image-card${isSelected ? ' selected' : ''}`}
       onClick={() => onClick(index)}
+      onContextMenu={(e) => onContextMenu?.(e, item)}
     >
       <div className="image-card-thumb">
+        <div className="image-check" onClick={(e) => onToggleSelect?.(item.path, e)}>
+          <input type="checkbox" checked={!!isSelected} readOnly />
+        </div>
         <LazyThumbnail
           src={getThumbnailUrl(item.path, thumbSize, thumbFit)}
           alt={item.name}

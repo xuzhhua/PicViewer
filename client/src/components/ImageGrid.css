@@ -57,6 +57,8 @@
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  content-visibility: auto;
+  contain-intrinsic-size: 76px;
 }
 
 .media-list-item:hover {
@@ -137,12 +139,59 @@
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px;
+}
+
+.image-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .image-card:hover {
   transform: translateY(-2px);
   border-color: var(--accent);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.image-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.image-card:hover .image-check,
+.image-card.selected .image-check {
+  opacity: 1;
+}
+
+.image-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.media-check {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.media-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.media-list-item.selected {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.08);
 }
 
 .image-card-thumb {

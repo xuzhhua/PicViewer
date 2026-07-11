@@ -13,32 +13,75 @@ const VIEW_MODES = [
   { key: 'all', icon: '⊡', label: '全部（含子目录）' },
 ];
 
+const SORT_OPTIONS = [
+  { key: 'name', label: '名称' },
+  { key: 'date', label: '日期' },
+  { key: 'size', label: '大小' },
+  { key: 'type', label: '类型' },
+];
+
+function sortMedia(items, sortBy) {
+  const sorted = [...items];
+  switch (sortBy) {
+    case 'date':
+      sorted.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+      break;
+    case 'size':
+      sorted.sort((a, b) => b.size - a.size);
+      break;
+    case 'type':
+      sorted.sort((a, b) => {
+        const extA = (a.format || a.name.split('.').pop() || '').toLowerCase();
+        const extB = (b.format || b.name.split('.').pop() || '').toLowerCase();
+        return extA.localeCompare(extB);
+      });
+      break;
+    case 'name':
+    default:
+      sorted.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+      break;
+  }
+  return sorted;
+}
+
 export default function App() {
-  const { folders, browseData, loading, error, addFolder, removeFolder, browse, browseRecursive, pickFolder } = useApi();
+  const { folders, browseData, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
+  const [sortBy, setSortBy] = useState('name');
+  const [selectedPaths, setSelectedPaths] = useState(new Set());
+  const [contextMenu, setContextMenu] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
   const isRecursive = viewMode === 'all';
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('picviewer-theme', theme);
+  }, [theme]);
 
   const handleBrowse = useCallback((folderPath) => {
     setCurrentPath(folderPath);
     setSearchQuery('');
     setSidebarOpen(false);
+    setSelectedPaths(new Set());
     browse(folderPath, true);
   }, [browse]);
 
   const handleBackToRoot = useCallback(() => {
     setCurrentPath('');
     setSearchQuery('');
+    setSelectedPaths(new Set());
     browse('', true);
   }, [browse]);
 
   // When switching to "all" mode, re-browse recursively
   const handleViewMode = useCallback((mode) => {
     setViewMode(mode);
+    setSelectedPaths(new Set());
     if (mode === 'all' && currentPath) {
       browseRecursive(currentPath);
     } else if (mode !== 'all' && isRecursive && currentPath) {
@@ -54,13 +97,73 @@ export default function App() {
     setLightboxIndex(-1);
   }, []);
 
-  // Filter images/videos by search query
-  const filteredImages = browseData?.images?.filter(img =>
+  // Multi-select
+  const toggleSelect = useCallback((path, e) => {
+    setSelectedPaths(prev => {
+      const next = new Set(prev);
+      if (e?.ctrlKey || e?.metaKey) {
+        if (next.has(path)) next.delete(path); else next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const all = [...(browseData?.images || []), ...(browseData?.videos || [])];
+    setSelectedPaths(new Set(all.map(m => m.path)));
+  }, [browseData]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedPaths(new Set());
+  }, []);
+
+  // Context menu
+  const handleContextMenu = useCallback((e, item) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, item });
+  }, []);
+
+  React.useEffect(() => {
+    if (contextMenu) {
+      const close = () => setContextMenu(null);
+      window.addEventListener('click', close);
+      return () => window.removeEventListener('click', close);
+    }
+  }, [contextMenu]);
+
+  const handleCopyPath = useCallback((item) => {
+    navigator.clipboard.writeText(item.path).catch(() => {});
+    setContextMenu(null);
+  }, []);
+
+  const handleOpenInExplorer = useCallback((item) => {
+    const sep = item.path.includes('\\') ? '\\' : '/';
+    const dir = item.path.substring(0, item.path.lastIndexOf(sep));
+    window.open(`file:///${dir.replace(/\\/g, '/')}`, '_blank');
+    setContextMenu(null);
+  }, []);
+
+  const handleBatchDownload = useCallback(async () => {
+    if (selectedPaths.size === 0) return;
+    const paths = [...selectedPaths];
+    const encoded = paths.map(p => {
+      const utf8Bytes = new TextEncoder().encode(p);
+      return btoa(String.fromCharCode(...utf8Bytes));
+    }).join(',');
+    window.open(`/api/download?paths=${encoded}`, '_blank');
+    setSelectedPaths(new Set());
+  }, [selectedPaths]);
+
+  // Filter and sort
+  const rawImages = browseData?.images?.filter(img =>
     !searchQuery || img.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
-  const filteredVideos = browseData?.videos?.filter(v =>
+  const rawVideos = browseData?.videos?.filter(v =>
     !searchQuery || v.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const filteredImages = sortMedia(rawImages, sortBy);
+  const filteredVideos = sortMedia(rawVideos, sortBy);
 
   // Combine for lightbox: images first, then videos
   const allMedia = [...filteredImages, ...filteredVideos];
@@ -124,7 +227,13 @@ export default function App() {
           onAddFolder={addFolder}
           onRemoveFolder={removeFolder}
           onPickFolder={pickFolder}
+          onReorderFolders={reorderFolders}
         />
+        <div className="sidebar-footer">
+          <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="切换主题">
+            {theme === 'dark' ? '🌙' : '☀️'}
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
@@ -137,18 +246,26 @@ export default function App() {
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
           {browseData && (
-            <div className="view-mode-switcher">
-              {VIEW_MODES.map(m => (
-                <button
-                  key={m.key}
-                  className={`vm-btn${viewMode === m.key ? ' active' : ''}`}
-                  onClick={() => handleViewMode(m.key)}
-                  title={m.label}
-                >
-                  {m.icon}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="view-mode-switcher">
+                {VIEW_MODES.map(m => (
+                  <button
+                    key={m.key}
+                    className={`vm-btn${viewMode === m.key ? ' active' : ''}`}
+                    onClick={() => handleViewMode(m.key)}
+                    title={m.label}
+                  >
+                    {m.icon}
+                  </button>
+                ))}
+              </div>
+
+              <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)} title="排序方式">
+                {SORT_OPTIONS.map(o => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </>
           )}
 
           <div className="breadcrumb">
@@ -162,7 +279,15 @@ export default function App() {
           </div>
         </div>
 
-        {/* Content */}
+        {selectedPaths.size > 0 && (
+          <div className="action-bar">
+            <span className="action-bar-count">已选 {selectedPaths.size} 项</span>
+            <button className="action-btn" onClick={selectAll}>全选</button>
+            <button className="action-btn" onClick={clearSelection}>取消</button>
+            <button className="action-btn primary" onClick={handleBatchDownload}>⬇ 批量下载</button>
+          </div>
+        )}
+
         <div className="content">
           {error && <div className="error-msg">{error}</div>}
 
@@ -194,16 +319,34 @@ export default function App() {
               {filteredImages.length > 0 && (
                 <ImageGrid
                   images={filteredImages}
-                  onImageClick={(i) => handleOpenLightbox(i)}
+                  onImageClick={(i) => {
+                    if (selectedPaths.size > 0) {
+                      toggleSelect(filteredImages[i].path, { ctrlKey: true });
+                    } else {
+                      handleOpenLightbox(i);
+                    }
+                  }}
                   viewMode={viewMode}
+                  selectedPaths={selectedPaths}
+                  onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
+                  onContextMenu={handleContextMenu}
                 />
               )}
 
               {filteredVideos.length > 0 && (
                 <VideoGrid
                   videos={filteredVideos}
-                  onVideoClick={(i) => handleOpenLightbox(filteredImages.length + i)}
+                  onVideoClick={(i) => {
+                    if (selectedPaths.size > 0) {
+                      toggleSelect(filteredVideos[i].path, { ctrlKey: true });
+                    } else {
+                      handleOpenLightbox(filteredImages.length + i);
+                    }
+                  }}
                   viewMode={viewMode}
+                  selectedPaths={selectedPaths}
+                  onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
+                  onContextMenu={handleContextMenu}
                 />
               )}
 
@@ -223,6 +366,20 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}>📋 复制路径</div>
+          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}>📂 打开所在文件夹</div>
+          <div className="context-item" onClick={() => {
+            const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path)))
+              .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+            window.open(`/api/image/view?path=${enc}`, '_blank');
+            setContextMenu(null);
+          }}>🔗 新标签页打开</div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightboxIndex >= 0 && allMedia.length > 0 && (

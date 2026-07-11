@@ -4,7 +4,8 @@
 
 ### 技术选型
 - **后端**: Express.js - 成熟稳定，Node.js 原生支持 Windows UNC 路径和映射盘符
-- **缩略图**: sharp - 高性能 Node.js 图片处理库，支持流式处理
+- **缩略图**: sharp - 高性能 Node.js 图片处理库，支持流式处理、cover/inside 两种缩放模式
+- **视频处理**: ffmpeg - 用于不兼容格式转码 (AVI→MP4) 和视频帧提取缩略图
 - **前端**: Vite + React - 快速开发体验，React 生态丰富
 
 ### Windows 路径处理
@@ -13,5 +14,32 @@
 - 安全: 必须做路径遍历防护，防止 `../` 越权访问
 
 ### API 设计
-- 文件夹路径通过 Base64 编码传递以避免特殊字符问题
-- 缩略图按需生成并缓存到本地目录
+- 文件夹路径通过 Base64url 编码传递以避免特殊字符问题
+- 缩略图按需生成并缓存，缓存 key 包含路径+尺寸+缩放模式
+- 视频 Range 请求支持 HTTP 206，默认每次 5MB 分块
+- 递归浏览限制最大深度 5 层，防止性能问题
+
+### 视频处理
+- 浏览器不支持 AVI/WMV/MKV/FLV 等容器格式的原生播放
+- 解决方案: 服务端 ffmpeg 转码为 H.264+AAC MP4
+- 转码结果缓存到 `cache/transcodes/`，key 包含路径+mtime
+- 转码参数: `libx264` + `fast preset` + `crf 23` + `movflags faststart`
+- 视频缩略图: `ffmpeg -ss 1 -vframes 1` 提取第 1 秒帧
+- 降级策略: ffmpeg 不可用时回退到 SVG 占位符 / 直接提供原文件
+
+### 视图模式
+- 网格: CSS Grid `repeat(auto-fill, minmax(180px, 1fr))` — 整齐卡片
+- 瀑布流: CSS `column-count` (4/3/2 列自适应) — 保持原始比例
+- 列表: Flexbox 行布局 — 缩略图 + 文件名 + 尺寸/格式标签
+- 全部: 服务端递归 `fs.readdir` 遍历子目录 — 瀑布流 + 来源目录标注
+
+### 响应式缩略图
+- 桌面 (≥1201px): 瀑布 600px, 网格 300px, 列表 200px
+- 平板 (769-1200px): 瀑布 500px, 网格 300px, 列表 120px
+- 手机 (<769px): 瀑布 400px, 网格 250px, 列表 120px
+- 通过 `window.innerWidth` + resize 事件去抖 (150ms) 实现
+
+### 启动脚本
+- `start.bat` 使用 Node.js 一行命令读取 `config.json` 端口
+- 替代了脆弱的 `findstr` + batch 字符串解析
+- 不再交互式询问端口，直接使用配置值

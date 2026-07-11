@@ -111,6 +111,21 @@ export default function useApi() {
     }
   }, [fetchFolders]);
 
+  // Reorder root folders
+  const reorderFolders = useCallback(async (ids) => {
+    try {
+      const res = await fetch('/api/folders/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      if (!res.ok) throw new Error('Reorder failed');
+      await fetchFolders();
+    } catch (e) {
+      console.error('Reorder failed:', e);
+    }
+  }, [fetchFolders]);
+
   // Get thumbnail URL
   const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover') => {
     const encoded = encodePath(filePath);
@@ -157,6 +172,7 @@ export default function useApi() {
     browseRecursive,
     addFolder,
     removeFolder,
+    reorderFolders,
     getThumbnailUrl,
     getImageUrl
   };

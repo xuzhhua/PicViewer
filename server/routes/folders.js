@@ -90,4 +90,29 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Reorder root folders
+router.put('/reorder', (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) {
+    return res.status(400).json({ error: 'ids array is required' });
+  }
+
+  const folders = readData();
+  const folderMap = new Map(folders.map(f => [f.id, f]));
+  const reordered = [];
+
+  for (const id of ids) {
+    const f = folderMap.get(id);
+    if (f) reordered.push(f);
+  }
+
+  // Append any folders not in the ids list
+  for (const f of folders) {
+    if (!ids.includes(f.id)) reordered.push(f);
+  }
+
+  writeData(reordered);
+  res.json({ success: true, folders: reordered });
+});
+
 module.exports = router;

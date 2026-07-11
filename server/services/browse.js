@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const { spawn } = require('child_process');
 const { readData } = require('../data/store');
 
 const IMAGE_EXTENSIONS = new Set([
@@ -14,6 +15,65 @@ const VIDEO_EXTENSIONS = new Set([
 ]);
 
 const FOLDER_EXTENSIONS = new Set(['.zip', '.rar', '.7z']);
+
+// --- Shared media metadata helpers ---
+
+async function enrichImageInfo(imgInfo, fullPath) {
+  try {
+    const meta = await sharp(fullPath).metadata();
+    imgInfo.width = meta.width || 0;
+    imgInfo.height = meta.height || 0;
+    imgInfo.format = meta.format || path.extname(fullPath).toLowerCase().slice(1);
+    // EXIF-like info that sharp exposes
+    if (meta.orientation) imgInfo.orientation = meta.orientation;
+    if (meta.space) imgInfo.colorSpace = meta.space;
+    if (meta.hasAlpha != null) imgInfo.hasAlpha = meta.hasAlpha;
+    if (meta.channels) imgInfo.channels = meta.channels;
+  } catch (e) { /* ignore */ }
+}
+
+async function enrichVideoInfo(vidInfo, fullPath) {
+  vidInfo.format = path.extname(fullPath).toLowerCase().slice(1);
+  try {
+    const info = await ffprobe(fullPath);
+    if (info) {
+      if (info.duration != null) vidInfo.duration = Math.round(info.duration);
+      if (info.videoCodec) vidInfo.videoCodec = info.videoCodec;
+      if (info.width) vidInfo.width = info.width;
+      if (info.height) vidInfo.height = info.height;
+      if (info.bitrate) vidInfo.bitrate = info.bitrate;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function ffprobe(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_format', '-show_streams',
+      filePath
+    ], { stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 });
+
+    let stdout = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.on('error', () => resolve(null));
+    proc.on('close', (code) => {
+      if (code !== 0) return resolve(null);
+      try {
+        const data = JSON.parse(stdout);
+        const videoStream = (data.streams || []).find(s => s.codec_type === 'video');
+        resolve({
+          duration: parseFloat(data.format?.duration) || 0,
+          bitrate: parseInt(data.format?.bit_rate) || 0,
+          videoCodec: videoStream?.codec_name || '',
+          width: videoStream?.width || 0,
+          height: videoStream?.height || 0
+        });
+      } catch (e) { resolve(null); }
+    });
+  });
+}
 
 // Check if path is within any allowed root folder
 function isPathAllowed(targetPath, rootFolders) {
@@ -87,12 +147,7 @@ async function listDirectory(targetPath, options = {}) {
             size: fileStat.size, modified: fileStat.mtime.toISOString()
           };
           if (details) {
-            try {
-              const meta = await sharp(fullPath).metadata();
-              imgInfo.width = meta.width || 0;
-              imgInfo.height = meta.height || 0;
-              imgInfo.format = meta.format || ext.slice(1);
-            } catch (e) { /* ignore metadata errors */ }
+            await enrichImageInfo(imgInfo, fullPath);
           }
           images.push(imgInfo);
         } catch (e) { /* skip */ }
@@ -104,7 +159,7 @@ async function listDirectory(targetPath, options = {}) {
             size: fileStat.size, modified: fileStat.mtime.toISOString()
           };
           if (details) {
-            vidInfo.format = ext.slice(1);
+            await enrichVideoInfo(vidInfo, fullPath);
           }
           videos.push(vidInfo);
         } catch (e) { /* skip */ }
@@ -172,12 +227,7 @@ async function listRecursive(targetPath, options = {}) {
               folder: relDir
             };
             if (details) {
-              try {
-                const meta = await sharp(fullPath).metadata();
-                imgInfo.width = meta.width || 0;
-                imgInfo.height = meta.height || 0;
-                imgInfo.format = meta.format || ext.slice(1);
-              } catch (e) { /* ignore */ }
+              await enrichImageInfo(imgInfo, fullPath);
             }
             images.push(imgInfo);
           } catch (e) { /* skip */ }
@@ -190,7 +240,7 @@ async function listRecursive(targetPath, options = {}) {
               folder: relDir
             };
             if (details) {
-              vidInfo.format = ext.slice(1);
+              await enrichVideoInfo(vidInfo, fullPath);
             }
             videos.push(vidInfo);
           } catch (e) { /* skip */ }

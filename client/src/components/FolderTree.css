@@ -164,6 +164,29 @@
   color: var(--danger);
 }
 
+.ft-drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 12px;
+  padding: 0 2px;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  letter-spacing: -2px;
+}
+
+.ft-item:hover .ft-drag-handle {
+  opacity: 0.5;
+}
+
+.ft-drag-handle:active {
+  cursor: grabbing;
+}
+
+.ft-item.drag-target {
+  border-top: 2px solid var(--accent);
+}
+
 .ft-back {
   color: var(--text-muted);
   font-size: 12px;
