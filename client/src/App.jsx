@@ -359,9 +359,10 @@ export default function App() {
                 ))}
               </select>
 
-              <div className="thumb-size-slider" title="缩略图大小">
-                <input type="range" min="120" max="500" value={thumbSize}
+              <div className={`thumb-size-slider${viewMode === 'list' ? ' disabled' : ''}`} title={viewMode === 'list' ? '列表模式不支持缩放' : `缩略图大小: ${thumbSize}px`}>
+                <input type="range" min="120" max="500" value={thumbSize} disabled={viewMode === 'list'}
                   onChange={e => { const v = parseInt(e.target.value); setThumbSize(v); localStorage.setItem('picviewer-thumb-size', v); }} />
+                <span className="thumb-size-label">{thumbSize}</span>
               </div>
 
               <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
@@ -430,6 +431,7 @@ export default function App() {
 
               {filteredImages.length > 0 && (
                 <ImageGrid
+                  key={`img-${thumbSize}`}
                   images={filteredImages}
                   onImageClick={(i) => {
                     if (selectedPaths.size > 0) {
@@ -450,6 +452,7 @@ export default function App() {
 
               {filteredVideos.length > 0 && (
                 <VideoGrid
+                  key={`vid-${thumbSize}`}
                   videos={filteredVideos}
                   onVideoClick={(i) => {
                     if (selectedPaths.size > 0) {

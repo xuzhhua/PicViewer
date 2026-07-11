@@ -219,6 +219,19 @@
   cursor: pointer;
 }
 
+.thumb-size-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.thumb-size-slider.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 /* Refresh button */
 .refresh-btn {
   background: none;

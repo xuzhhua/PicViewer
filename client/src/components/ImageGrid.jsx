@@ -18,36 +18,20 @@ function formatDate(dateStr) {
   });
 }
 
-// Responsive thumbnail sizing with user override
-function useThumbSize(viewMode, overrideSize) {
-  const [width, setWidth] = useState(() => window.innerWidth);
-
-  useEffect(() => {
-    let timer;
-    const handleResize = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => setWidth(window.innerWidth), 150);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  if (viewMode === 'list') return { size: overrideSize || (width < 768 ? 120 : 200), fit: 'inside' };
-  if (viewMode === 'waterfall' || viewMode === 'all') {
-    // Render at 2x-3x display size for HiDPI sharpness
-    if (overrideSize) return { size: overrideSize * 3, fit: 'inside' };
-    if (width < 769) return { size: 600, fit: 'inside' };
-    if (width < 1201) return { size: 800, fit: 'inside' };
-    return { size: 1000, fit: 'inside' };
-  }
-  // Grid mode: render at 2x for HiDPI
-  if (overrideSize) return { size: overrideSize * 2, fit: 'cover' };
-  if (width < 769) return { size: 400, fit: 'cover' };
-  return { size: 500, fit: 'cover' };
-}
-
 export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
   const { getThumbnailUrl } = useApi();
+
+  // Thumbnail slider controls display size: grid column width or waterfall column count
+  const gridStyle = {};
+  let effViewMode = viewMode;
+  if (viewMode === 'grid') {
+    const colSize = Math.round(thumbSize * 0.72); // card fills ~72% of column
+    gridStyle.gridTemplateColumns = `repeat(auto-fill, minmax(${colSize}px, 1fr))`;
+    gridStyle.gap = `${Math.round(thumbSize * 0.05)}px`;
+  } else if (viewMode === 'waterfall' || viewMode === 'all') {
+    const cols = thumbSize > 380 ? 1 : thumbSize > 250 ? 2 : thumbSize > 160 ? 3 : 4;
+    gridStyle.columnCount = cols;
+  }
 
   const getGridClass = () => {
     switch (viewMode) {
@@ -60,7 +44,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
   return (
     <div className="image-section">
       <h3 className="section-title"><img src="/icons/picture.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部图片' : '图片'} ({images.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
-      <div className={getGridClass()}>
+      <div className={getGridClass()} style={gridStyle}>
         {images.map((img, index) => (
           <MediaCard
             key={img.path}
@@ -85,6 +69,16 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
 export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
   const { getThumbnailUrl } = useApi();
 
+  const gridStyle = {};
+  if (viewMode === 'grid') {
+    const colSize = Math.round(thumbSize * 0.72);
+    gridStyle.gridTemplateColumns = `repeat(auto-fill, minmax(${colSize}px, 1fr))`;
+    gridStyle.gap = `${Math.round(thumbSize * 0.05)}px`;
+  } else if (viewMode === 'waterfall' || viewMode === 'all') {
+    const cols = thumbSize > 380 ? 1 : thumbSize > 250 ? 2 : thumbSize > 160 ? 3 : 4;
+    gridStyle.columnCount = cols;
+  }
+
   const getGridClass = () => {
     switch (viewMode) {
       case 'waterfall': case 'all': return 'media-grid media-waterfall';
@@ -96,7 +90,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
   return (
     <div className="image-section">
       <h3 className="section-title"><img src="/icons/video-camera.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部视频' : '视频'} ({videos.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
-      <div className={getGridClass()}>
+      <div className={getGridClass()} style={gridStyle}>
         {videos.map((vid, i) => (
           <MediaCard
             key={vid.path}
@@ -120,7 +114,25 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
 
 function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize: overrideSize }) {
   const isVideo = item.type === 'video';
-  const { size: thumbSize, fit: thumbFit } = useThumbSize(viewMode, overrideSize);
+  // Display size comes from CSS grid column. Sharp renders at 2x for HiDPI quality.
+  let sharpSize, sharpFit;
+  if (overrideSize) {
+    const baseSize = overrideSize; // slider value = desired display size in px
+    if (viewMode === 'waterfall' || viewMode === 'all') { sharpSize = baseSize * 2; sharpFit = 'inside'; }
+    else if (viewMode === 'list') { sharpSize = baseSize; sharpFit = 'inside'; }
+    else { sharpSize = baseSize * 2; sharpFit = 'cover'; }
+  } else {
+    const w = window.innerWidth;
+    if (viewMode === 'list') { sharpSize = w < 768 ? 120 : 200; sharpFit = 'inside'; }
+    else if (viewMode === 'waterfall' || viewMode === 'all') {
+      if (w < 769) { sharpSize = 600; sharpFit = 'inside'; }
+      else if (w < 1201) { sharpSize = 800; sharpFit = 'inside'; }
+      else { sharpSize = 1000; sharpFit = 'inside'; }
+    } else {
+      if (w < 769) { sharpSize = 400; sharpFit = 'cover'; }
+      else { sharpSize = 500; sharpFit = 'cover'; }
+    }
+  }
 
   if (viewMode === 'list') {
     const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
@@ -136,7 +148,8 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
         </div>
         <div className="media-list-thumb">
           <LazyThumbnail
-            src={getThumbnailUrl(item.path, thumbSize, thumbFit)}
+            key={`${item.path}-${sharpSize}`}
+            src={getThumbnailUrl(item.path, sharpSize, sharpFit)}
             alt={item.name}
             isVideo={isVideo}
           />
@@ -174,7 +187,8 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
           <input type="checkbox" checked={!!isSelected} readOnly />
         </div>
         <LazyThumbnail
-          src={getThumbnailUrl(item.path, thumbSize, thumbFit)}
+          key={`${item.path}-${sharpSize}`}
+          src={getThumbnailUrl(item.path, sharpSize, sharpFit)}
           alt={item.name}
           isVideo={isVideo}
         />
