@@ -69,8 +69,9 @@ export default function App() {
     setSearchQuery('');
     setSidebarOpen(false);
     setSelectedPaths(new Set());
+    if (viewMode === 'all') setViewMode('grid');
     browse(folderPath, true);
-  }, [browse]);
+  }, [browse, viewMode]);
 
   const handleBackToRoot = useCallback(() => {
     setCurrentPath('');

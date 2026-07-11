@@ -61,7 +61,7 @@ export default function useApi() {
     setError(null);
     try {
       const encoded = encodePath(folderPath);
-      const url = `/api/browse/recursive?path=${encoded}&details=1`;
+      const url = `/api/browse/recursive?path=${encoded}&details=1&fast=1`;
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();

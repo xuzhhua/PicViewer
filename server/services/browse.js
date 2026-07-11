@@ -196,7 +196,7 @@ async function listDirectory(targetPath, options = {}) {
 
 // Recursively list all images and videos from directory and subdirectories
 async function listRecursive(targetPath, options = {}) {
-  const { details = false, maxDepth = 5 } = options;
+  const { details = false, maxDepth = 5, fast = false } = options;
   const rootFolders = readData();
 
   if (!isPathAllowed(targetPath, rootFolders)) {
@@ -240,7 +240,7 @@ async function listRecursive(targetPath, options = {}) {
               size: fileStat.size, modified: fileStat.mtime.toISOString(),
               folder: relDir
             };
-            if (details) {
+            if (details && !fast) {
               await enrichImageInfo(imgInfo, fullPath);
             }
             images.push(imgInfo);
@@ -253,7 +253,7 @@ async function listRecursive(targetPath, options = {}) {
               size: fileStat.size, modified: fileStat.mtime.toISOString(),
               folder: relDir
             };
-            if (details) {
+            if (details && !fast) {
               await enrichVideoInfo(vidInfo, fullPath);
             }
             videos.push(vidInfo);

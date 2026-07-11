@@ -29,11 +29,12 @@ router.get('/', async (req, res) => {
 });
 
 // Browse directory contents recursively
-// GET /api/browse/recursive?path=<base64 encoded path>&details=1
+// GET /api/browse/recursive?path=<base64 encoded path>&details=1&fast=1
 router.get('/recursive', async (req, res) => {
   try {
     const encodedPath = req.query.path || '';
     const details = req.query.details === '1';
+    const fast = req.query.fast === '1';
     let dirPath = '';
 
     if (encodedPath) {
@@ -44,7 +45,7 @@ router.get('/recursive', async (req, res) => {
       return res.status(400).json({ error: 'Path is required for recursive browse' });
     }
 
-    const result = await browseService.listRecursive(dirPath, { details });
+    const result = await browseService.listRecursive(dirPath, { details, fast });
     res.json(result);
   } catch (err) {
     if (err.code === 'ENOENT') {
