@@ -18,7 +18,9 @@ function readData() {
 }
 
 function writeData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  const tmpFile = DATA_FILE + '.tmp';
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
+  fs.renameSync(tmpFile, DATA_FILE);
 }
 
 // --- Ignored folders ---
@@ -37,7 +39,9 @@ function readIgnored() {
 }
 
 function writeIgnored(data) {
-  fs.writeFileSync(IGNORED_FILE, JSON.stringify(data, null, 2));
+  const tmpFile = IGNORED_FILE + '.tmp';
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
+  fs.renameSync(tmpFile, IGNORED_FILE);
 }
 
 module.exports = { readData, writeData, readIgnored, writeIgnored };

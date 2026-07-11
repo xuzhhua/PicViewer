@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import useApi from '../hooks/useApi';
 import './ImageGrid.css';
 
@@ -18,8 +18,8 @@ function formatDate(dateStr) {
   });
 }
 
-// Responsive thumbnail sizing: choose size based on viewport to match column width
-function useThumbSize(viewMode) {
+// Responsive thumbnail sizing with user override
+function useThumbSize(viewMode, overrideSize) {
   const [width, setWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {
@@ -32,20 +32,21 @@ function useThumbSize(viewMode) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (viewMode === 'list') return { size: width < 768 ? 120 : 200, fit: 'inside' };
+  if (viewMode === 'list') return { size: overrideSize || (width < 768 ? 120 : 200), fit: 'inside' };
   if (viewMode === 'waterfall' || viewMode === 'all') {
-    // Waterfall columns: 4 (1201+), 3 (769-1200), 2 (<769)
-    // Thumb should be ~1.5x column width for sharp HiDPI display
-    if (width < 769) return { size: 400, fit: 'inside' };
-    if (width < 1201) return { size: 500, fit: 'inside' };
-    return { size: 600, fit: 'inside' };
+    // Render at 2x-3x display size for HiDPI sharpness
+    if (overrideSize) return { size: overrideSize * 3, fit: 'inside' };
+    if (width < 769) return { size: 600, fit: 'inside' };
+    if (width < 1201) return { size: 800, fit: 'inside' };
+    return { size: 1000, fit: 'inside' };
   }
-  // Grid: minmax(180px, 1fr), 300 is plenty
-  if (width < 769) return { size: 250, fit: 'cover' };
-  return { size: 300, fit: 'cover' };
+  // Grid mode: render at 2x for HiDPI
+  if (overrideSize) return { size: overrideSize * 2, fit: 'cover' };
+  if (width < 769) return { size: 400, fit: 'cover' };
+  return { size: 500, fit: 'cover' };
 }
 
-export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu }) {
+export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
   const { getThumbnailUrl } = useApi();
 
   const getGridClass = () => {
@@ -71,6 +72,9 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
             isSelected={selectedPaths?.has(img.path)}
             onToggleSelect={onToggleSelect}
             onContextMenu={onContextMenu}
+            onBrowseFolder={onBrowseFolder}
+            isSearch={isSearch}
+            thumbSize={thumbSize}
           />
         ))}
       </div>
@@ -78,7 +82,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
   );
 }
 
-export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu }) {
+export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
   const { getThumbnailUrl } = useApi();
 
   const getGridClass = () => {
@@ -104,6 +108,9 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
             isSelected={selectedPaths?.has(vid.path)}
             onToggleSelect={onToggleSelect}
             onContextMenu={onContextMenu}
+            onBrowseFolder={onBrowseFolder}
+            isSearch={isSearch}
+            thumbSize={thumbSize}
           />
         ))}
       </div>
@@ -111,9 +118,9 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
   );
 }
 
-function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu }) {
+function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize: overrideSize }) {
   const isVideo = item.type === 'video';
-  const { size: thumbSize, fit: thumbFit } = useThumbSize(viewMode);
+  const { size: thumbSize, fit: thumbFit } = useThumbSize(viewMode, overrideSize);
 
   if (viewMode === 'list') {
     const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
@@ -137,7 +144,10 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
         <div className="media-list-info">
           <span className="media-list-name" title={item.name}>{item.name}</span>
           {item.folder && item.folder !== '.' && (
-            <span className="media-list-folder" title={item.folder}>📁 {item.folder}</span>
+            <span className="media-list-folder" title={item.folder}>
+              📁 {item.folder}
+              {isSearch && onBrowseFolder && <button className="list-folder-btn" onClick={e => { e.stopPropagation(); const sep=item.path.includes('\\')?'\\':'/'; const dir=item.path.substring(0,item.path.lastIndexOf(sep)); onBrowseFolder(dir); }} title="打开文件夹">↗</button>}
+            </span>
           )}
           <span className="media-list-meta">
             {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
@@ -172,7 +182,10 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
       <div className="image-card-info">
         <span className="image-card-name" title={item.name}>{item.name}</span>
         {item.folder && item.folder !== '.' && (
-          <span className="image-card-folder" title={item.folder}>📁 {item.folder}</span>
+          <span className="image-card-folder" title={item.folder}>
+            📁 {item.folder}
+            {isSearch && onBrowseFolder && <button className="card-folder-btn" onClick={e => { e.stopPropagation(); const sep=item.path.includes('\\')?'\\':'/'; const dir=item.path.substring(0,item.path.lastIndexOf(sep)); onBrowseFolder(dir); }} title="打开文件夹">↗</button>}
+          </span>
         )}
         <span className="image-card-meta">
           {isVideo ? '🎬 ' : ''}{formatSize(item.size)} · {formatDate(item.modified)}
@@ -185,6 +198,15 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
 function LazyThumbnail({ src, alt, isVideo }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const prevSrc = useRef(src);
+
+  useEffect(() => {
+    if (prevSrc.current !== src) {
+      setLoaded(false);
+      setError(false);
+      prevSrc.current = src;
+    }
+  }, [src]);
 
   if (error) {
     return (

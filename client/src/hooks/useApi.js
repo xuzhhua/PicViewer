@@ -217,7 +217,40 @@ export default function useApi() {
     }
   }, [addIgnored]);
 
-  // Initialize
+  // Search across all configured folders
+  const search = useCallback(async (query) => {
+    if (!query || query.trim().length < 1) {
+      setBrowseData(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `/api/search?q=${encodeURIComponent(query.trim())}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Search failed');
+      }
+      const data = await res.json();
+      // Format search results like browse data for reuse in ImageGrid
+      setBrowseData({
+        path: '',
+        name: `搜索: "${data.query}"`,
+        folders: [],
+        images: data.images || [],
+        videos: data.videos || [],
+        isSearch: true,
+        total: data.total,
+        truncated: data.truncated
+      });
+    } catch (e) {
+      setError(e.message);
+      setBrowseData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   useEffect(() => {
     fetchFolders();
     fetchIgnored();
@@ -240,6 +273,7 @@ export default function useApi() {
     addIgnored,
     removeIgnored,
     pickIgnoredFolder,
+    search,
     getThumbnailUrl,
     getImageUrl
   };

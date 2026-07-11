@@ -7,16 +7,19 @@ const MAX_ZOOM = 8;
 const ZOOM_STEP = 0.15;
 const SWIPE_THRESHOLD = 60;
 
-export default function Lightbox({ images, currentIndex, onClose, onNavigate }) {
-  const { getImageUrl } = useApi();
+export default function Lightbox({ images, currentIndex, onClose, onNavigate, favorites, onAddFavorite, onRemoveFavorite }) {
+  const { getImageUrl, getThumbnailUrl } = useApi();
   const [loaded, setLoaded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
+  const [slideInterval, setSlideInterval] = useState(4000);
   const [showInfo, setShowInfo] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
+  const [rotation, setRotation] = useState(0);
   const slideshowRef = useRef(null);
+  const preloadCache = useRef(new Set());
 
   // Refs to keep latest values for synchronous access in event handlers
   const zoomRef = useRef(1);
@@ -49,7 +52,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
   }, [item?.path, isVideo]);
 
   const resetView = useCallback(() => {
-    setZoom(1); setPanX(0); setPanY(0);
+    setZoom(1); setPanX(0); setPanY(0); setRotation(0);
     zoomRef.current = 1; panRef.current = { x: 0, y: 0 };
   }, []);
   const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
@@ -64,14 +67,30 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
     onNavigate((currentIndex - 1 + images.length) % images.length);
   }, [currentIndex, images.length, onNavigate, resetView]);
 
-  // Slideshow
+  // Slideshow with variable speed
   useEffect(() => {
     if (slideshow && !isVideo) {
-      slideshowRef.current = setInterval(goNext, 4000);
+      slideshowRef.current = setInterval(goNext, slideInterval);
       return () => clearInterval(slideshowRef.current);
     }
     return () => {};
-  }, [slideshow, goNext, isVideo]);
+  }, [slideshow, goNext, isVideo, slideInterval]);
+
+  // Preload adjacent images
+  useEffect(() => {
+    if (isVideo) return;
+    const toPreload = [];
+    for (let i = -2; i <= 2; i++) {
+      if (i === 0) continue;
+      const idx = (currentIndex + i + images.length) % images.length;
+      if (!preloadCache.current.has(idx) && images[idx]?.type === 'image') {
+        preloadCache.current.add(idx);
+        const img = new Image();
+        img.src = getImageUrl(images[idx].path);
+        toPreload.push(img);
+      }
+    }
+  }, [currentIndex, images, getImageUrl, isVideo]);
 
   // Keyboard
   useEffect(() => {
@@ -93,6 +112,19 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
         case '0':
           if (!isVideo) resetView();
           break;
+        case 'r':
+          if (!isVideo) setRotation(r => (r + 90) % 360);
+          break;
+        case 'l':
+          if (!isVideo) setRotation(r => (r - 90 + 360) % 360);
+          break;
+        case 'i':
+          setShowInfo(s => !s);
+          break;
+        case '1': setSlideInterval(1000); break;
+        case '2': setSlideInterval(3000); break;
+        case '3': setSlideInterval(5000); break;
+        case '4': setSlideInterval(10000); break;
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -236,15 +268,36 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
         <div className="lightbox-actions">
           {!isVideo && (
             <button className={`lb-btn ${slideshow ? 'active' : ''}`}
-              onClick={() => setSlideshow(s => !s)} title="Slideshow">
+              onClick={() => setSlideshow(s => !s)} title="幻灯片 (空格)">
               {slideshow ? '⏸' : '▶'}
             </button>
           )}
-          {!isVideo && (
-            <button className="lb-btn" onClick={resetView} title="Reset zoom">🔄</button>
+          {slideshow && !isVideo && (
+            <select className="lb-speed-select" value={slideInterval}
+              onChange={e => setSlideInterval(parseInt(e.target.value))} title="幻灯片间隔">
+              <option value="1000">1s</option>
+              <option value="3000">3s</option>
+              <option value="5000">5s</option>
+              <option value="10000">10s</option>
+            </select>
           )}
-          <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息">ℹ️</button>
-          <button className="lb-btn" onClick={onClose} title="Close">✕</button>
+          {!isVideo && (
+            <>
+              <button className="lb-btn" onClick={() => setRotation(r => (r - 90 + 360) % 360)} title="左旋 (L)">↺</button>
+              <button className="lb-btn" onClick={() => setRotation(r => (r + 90) % 360)} title="右旋 (R)">↻</button>
+            </>
+          )}
+          {!isVideo && (
+            <button className="lb-btn" onClick={resetView} title="重置 (0)">🔄</button>
+          )}
+          <button className="lb-btn" onClick={async () => {
+            const fav = favorites?.find(f => f.path === item.path);
+            fav ? onRemoveFavorite?.(fav.id) : onAddFavorite?.(item);
+          }} title={favorites?.find(f => f.path === item.path) ? '取消收藏' : '添加收藏'}>
+            {favorites?.find(f => f.path === item.path) ? '⭐' : '☆'}
+          </button>
+          <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息 (I)">ℹ️</button>
+          <button className="lb-btn" onClick={onClose} title="关闭 (Esc)">✕</button>
         </div>
       </div>
 
@@ -280,7 +333,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
               onMouseDown={handleMouseDown}
               style={{
                 cursor: zoom > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
-                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                transform: `translate(${panX}px, ${panY}px) scale(${zoom}) rotate(${rotation}deg)`,
                 transition: touchRef.current.isPinching ? 'none' : undefined
               }}
             >
@@ -308,7 +361,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
             onClick={() => { setLoaded(false); setVideoLoading(true); resetView(); onNavigate(i); }}>
             {img.type === 'video'
               ? <div className="thumb-video-placeholder"><span>▶</span></div>
-              : <img src={getImageUrl(img.path)} alt="" loading="lazy" />}
+              : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />}
           </div>
         ))}
       </div>

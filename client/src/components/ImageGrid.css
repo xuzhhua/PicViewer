@@ -30,7 +30,9 @@
 }
 
 .media-waterfall .image-card-thumb {
-  aspect-ratio: auto;
+  aspect-ratio: auto !important;
+  height: auto !important;
+  overflow: visible;
 }
 
 .media-waterfall .image-card-thumb img {
@@ -374,5 +376,12 @@
 @media (min-width: 1201px) {
   .media-waterfall {
     column-count: 4;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .media-waterfall {
+    column-count: 1;
   }
 }

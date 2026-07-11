@@ -14,8 +14,6 @@ const VIDEO_EXTENSIONS = new Set([
   '.mp4', '.webm', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.m4v', '.mts', '.m2ts'
 ]);
 
-const FOLDER_EXTENSIONS = new Set(['.zip', '.rar', '.7z']);
-
 // --- Shared media metadata helpers ---
 
 async function enrichImageInfo(imgInfo, fullPath) {
@@ -81,18 +79,17 @@ function isPathAllowed(targetPath, rootFolders) {
   const normalized = path.normalize(targetPath);
   return rootFolders.some(root => {
     const rootNorm = path.normalize(root.path);
-    return normalized.startsWith(rootNorm) || normalized === rootNorm;
+    return normalized === rootNorm || normalized.startsWith(rootNorm + path.sep);
   });
 }
 
 // Check if a path (or its parent chain) is in the ignored list
-function isIgnored(targetPath) {
-  const ignored = readIgnored();
-  if (ignored.length === 0) return false;
+function isIgnored(targetPath, ignoredList) {
+  if (!ignoredList || ignoredList.length === 0) return false;
   const normalized = path.normalize(targetPath);
-  return ignored.some(entry => {
+  return ignoredList.some(entry => {
     const ignoredNorm = path.normalize(entry.path);
-    return normalized.startsWith(ignoredNorm) || normalized === ignoredNorm;
+    return normalized === ignoredNorm || normalized.startsWith(ignoredNorm + path.sep);
   });
 }
 
@@ -100,6 +97,7 @@ function isIgnored(targetPath) {
 async function listDirectory(targetPath, options = {}) {
   const { details = false } = options;
   const rootFolders = readData();
+  const ignoredList = readIgnored();
 
   // If no path specified, return the list of root folders
   if (!targetPath) {
@@ -146,7 +144,7 @@ async function listDirectory(targetPath, options = {}) {
       try {
         await fs.access(fullPath, fs.constants.R_OK);
         // Skip ignored folders
-        if (isIgnored(fullPath)) continue;
+        if (isIgnored(fullPath, ignoredList)) continue;
         folders.push({ name: entry.name, path: fullPath });
       } catch (e) { /* skip */ }
     } else if (entry.isFile()) {
@@ -198,6 +196,7 @@ async function listDirectory(targetPath, options = {}) {
 async function listRecursive(targetPath, options = {}) {
   const { details = false, maxDepth = 5, fast = false } = options;
   const rootFolders = readData();
+  const ignoredList = readIgnored();
 
   if (!isPathAllowed(targetPath, rootFolders)) {
     throw Object.assign(new Error('Path not allowed'), { code: 'EACCES' });
@@ -227,7 +226,7 @@ async function listRecursive(targetPath, options = {}) {
 
       if (entry.isDirectory()) {
         // Skip ignored folders
-        if (isIgnored(fullPath)) continue;
+        if (isIgnored(fullPath, ignoredList)) continue;
         await walk(fullPath, depth + 1);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();

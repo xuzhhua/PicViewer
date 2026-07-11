@@ -30,7 +30,7 @@ function isPathAllowed(targetPath) {
   const normalized = path.normalize(targetPath);
   return rootFolders.some(root => {
     const rootNorm = path.normalize(root.path);
-    return normalized.startsWith(rootNorm) || normalized === rootNorm;
+    return normalized === rootNorm || normalized.startsWith(rootNorm + path.sep);
   });
 }
 
@@ -404,10 +404,4 @@ async function serveThumbnail(filePath, size, fit, res) {
   }
 }
 
-// Search images by filename
-async function searchImages(query, rootFolders) {
-  // For simplicity, search is done client-side after browsing
-  return { query };
-}
-
-module.exports = { serveFile, serveThumbnail, searchImages };
+module.exports = { serveFile, serveThumbnail };

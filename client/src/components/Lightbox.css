@@ -80,6 +80,17 @@
   border-color: var(--accent);
 }
 
+.lb-speed-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  height: 36px;
+}
+
 /* Content area */
 .lightbox-content {
   flex: 1;
@@ -374,5 +385,20 @@
     gap: 8px;
     font-size: 10px;
     flex-wrap: wrap;
+  }
+
+  .lb-speed-select {
+    height: 30px;
+    font-size: 11px;
+    padding: 2px;
+  }
+
+  .lightbox-info-panel {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    bottom: 60px;
+    max-height: 50vh;
   }
 }

@@ -8,6 +8,8 @@ const browseRouter = require('./routes/browse');
 const imageRouter = require('./routes/image');
 const downloadRouter = require('./routes/download');
 const ignoredRouter = require('./routes/ignored');
+const searchRouter = require('./routes/search');
+const actionsRouter = require('./routes/actions');
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use('/api/browse', browseRouter);
 app.use('/api/image', imageRouter);
 app.use('/api/download', downloadRouter);
 app.use('/api/ignored', ignoredRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/actions', actionsRouter);
 
 // Serve React build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
@@ -53,7 +57,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
-function startServer(port) {
+function startServer(port, attempts = 0) {
+  const MAX_RETRIES = 100;
+  if (attempts >= MAX_RETRIES) {
+    console.error(`Failed to find an available port after ${MAX_RETRIES} attempts`);
+    process.exit(1);
+  }
+
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`PicViewer running at http://localhost:${port}`);
     console.log(`LAN access:  http://${getLocalIP()}:${port}`);
@@ -63,7 +73,7 @@ function startServer(port) {
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       console.log(`Port ${port} is in use, trying ${port + 1}...`);
-      startServer(port + 1);
+      startServer(port + 1, attempts + 1);
     } else {
       console.error('Server error:', err.message);
       process.exit(1);

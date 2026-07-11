@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import './FolderTree.css';
 
 export default function FolderTree({
@@ -16,8 +16,8 @@ export default function FolderTree({
   const [newPath, setNewPath] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const dragIdRef = useRef(null);
 
   const handleAdd = async () => {
     if (!newPath.trim()) return;
@@ -74,7 +74,7 @@ export default function FolderTree({
 
   // Folder reorder drag handlers
   const handleFolderDragStart = useCallback((e, folderId) => {
-    setDragId(folderId);
+    dragIdRef.current = folderId;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', folderId);
   }, []);
@@ -82,10 +82,10 @@ export default function FolderTree({
   const handleFolderDragOver = useCallback((e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
-    if (folderId !== dragId) {
+    if (folderId !== dragIdRef.current) {
       setDragOverId(folderId);
     }
-  }, [dragId]);
+  }, []);
 
   const handleFolderDragLeave = useCallback(() => {
     setDragOverId(null);
@@ -94,7 +94,8 @@ export default function FolderTree({
   const handleFolderDrop = useCallback((e, targetId) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragId(null);
+    const dragId = dragIdRef.current;
+    dragIdRef.current = null;
     setDragOverId(null);
 
     if (!dragId || dragId === targetId) return;
@@ -104,12 +105,16 @@ export default function FolderTree({
     const toIdx = ids.indexOf(targetId);
     if (fromIdx === -1 || toIdx === -1) return;
 
-    // Reorder: remove fromIdx, insert at toIdx
     ids.splice(fromIdx, 1);
     ids.splice(toIdx, 0, dragId);
 
     onReorderFolders?.(ids);
-  }, [dragId, folders, onReorderFolders]);
+  }, [folders, onReorderFolders]);
+
+  const handleFolderDragEnd = useCallback(() => {
+    dragIdRef.current = null;
+    setDragOverId(null);
+  }, []);
 
   return (
     <div
@@ -173,7 +178,7 @@ export default function FolderTree({
                 onDragOver={(e) => handleFolderDragOver(e, folder.id)}
                 onDragLeave={handleFolderDragLeave}
                 onDrop={(e) => handleFolderDrop(e, folder.id)}
-                onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                onDragEnd={handleFolderDragEnd}
               >
                 <span className="ft-drag-handle" title="拖拽排序">⋮⋮</span>
                 <div

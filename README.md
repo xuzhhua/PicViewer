@@ -1,20 +1,38 @@
-# 🖼️ PicViewer - 本地图片视频浏览器
+# 🖼️ PicViewer — 本地图片视频浏览器
 
 基于 Web 的本地文件浏览工具，支持局域网共享文件夹和映射驱动器。Node.js + React 构建。
 
 ## ✨ 功能特性
 
-- 📂 **文件夹管理** — 支持手动输入、系统原生选择器、拖拽三种方式添加文件夹，兼容 UNC 路径（`\\server\share`）和映射盘符（`Z:\`）
-- 🖼️ **四种浏览模式** — 网格（整齐卡片）、瀑布流（保持原始比例）、列表（详细信息）、全部（递归子目录）
-- 🎬 **视频播放** — 支持 `.mp4`、`.webm`、`.mov`、`.mkv`、`.avi` 等格式，不兼容格式自动通过 ffmpeg 实时转码为 H.264 MP4
-- 🎞️ **视频缩略图** — ffmpeg 提取视频第 1 秒真实帧，非 SVG 占位符
-- 👁️ **灯箱查看器** — 全屏查看，支持缩放、幻灯片、键盘导航、触控滑动，视频加载时显示处理进度
-- 🔍 **搜索过滤** — 按文件名实时过滤
-- 📱 **移动端适配** — 汉堡菜单、自适应网格、触控手势，缩略图尺寸按屏幕自动调整
-- 🌐 **局域网访问** — 服务监听 `0.0.0.0`，局域网内任意设备均可访问
-- ⚡ **缩略图缓存** — 支持等比/裁剪两种模式，缩略图缓存到磁盘，再次访问秒加载
-- 🔄 **递归浏览** — "全部"模式遍历子目录，展示所有媒体并标注来源目录
-- 🔒 **路径安全** — 仅可访问已配置的根目录，阻止目录穿越攻击
+### 浏览体验
+- 📂 **文件夹管理** — 手动输入、系统原生选择器、拖拽三种添加方式，支持 UNC / 映射盘符
+- 🖼️ **四种浏览模式** — 网格、瀑布流（保持比例）、列表（详细信息）、全部（递归子目录）
+- 🔍 **全量搜索** — 遍历所有配置文件夹的实时搜索，结果显示来源目录，一键跳转
+- 🎚️ **缩略图尺寸滑块** — 120px ~ 500px 实时调节，偏好自动保存
+- 📱 **移动端适配** — 汉堡菜单、自适应网格、触控手势、可滚动面包屑
+
+### 灯箱
+- 👁️ **全屏查看器** — 缩放/平移/旋转、触控手势、鼠标拖拽
+- 🎞️ **幻灯片播放** — 可调速 1s/3s/5s/10s，空格启停
+- ⚡ **图片预加载** — 前后各预加载 2 张，翻页瞬间显示
+- 🔄 **旋转** — 90° 递增旋转，R/L 快捷键
+- ℹ️ **信息面板** — EXIF + 视频编码信息（I 键切换）
+
+### 视频支持
+- 🎬 **多格式播放** — 不兼容格式（.mkv/.avi/.wmv 等）自动 ffmpeg 实时转码 H.264 MP4
+- 🎞️ **视频缩略图** — ffmpeg 提取真实帧
+
+### 效率工具
+- ⭐ **收藏夹** — 右键或灯箱工具栏添加，侧边栏展示，点击跳转所在文件夹
+- 🚫 **忽略文件夹** — 拖拽添加，浏览和搜索时自动跳过
+- ⬇ **批量下载** — 多选后 ZIP 打包，自动去重文件名
+- 🔄 **目录刷新** — F5 或 🔄 按钮
+- ⌨️ **键盘快捷键** — Ctrl+F 搜索、F5 刷新、Ctrl+A 全选、灯箱全套
+
+### 视觉与体验
+- 🌗 **深色/浅色主题** — 一键切换
+- 🎨 **QingIcon 图标** — 侧边栏、工具栏、视图切换全部使用矢量图标
+- 📐 **侧边栏美化** — 选中态左侧色条、子目录树状缩进、折叠面板、数量徽章
 
 ## 🛠️ 技术栈
 
@@ -22,139 +40,148 @@
 |------|------|
 | 后端 | Node.js + Express |
 | 缩略图 | [sharp](https://sharp.pixelplumbing.com/) |
-| 视频处理 | [ffmpeg](https://ffmpeg.org/)（转码 + 缩略图提取） |
+| 视频处理 | [ffmpeg](https://ffmpeg.org/)（转码 + 缩略图） |
+| ZIP 打包 | [archiver](https://www.archiverjs.com/) |
 | 前端 | React 18 + Vite |
-| 样式 | CSS |
+| 样式 | 纯 CSS（CSS 自定义属性 + 深色模式） |
 
 ## 📋 环境要求
 
-- [Node.js](https://nodejs.org/) 18 及以上
-- 推荐 Windows（对 UNC 路径和映射驱动器支持最好），macOS / Linux 也可用
+- [Node.js](https://nodejs.org/) 18+
+- 视频转码需安装 [ffmpeg](https://ffmpeg.org/) 并加入 PATH
+- 推荐 Windows（文件夹选择器、UNC 路径支持最好），macOS / Linux 也可用
 
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装依赖
-npm run setup
-
-# 2. 构建前端并启动服务
-npm run build
-npm start
-
-# Windows 用户也可以直接双击 start.bat
+npm run setup    # 安装依赖
+npm run build    # 构建前端
+npm start        # 启动服务
 ```
 
-浏览器打开 `http://localhost:3456`。
+或双击 `start.bat`（自动读取 `server/config.json` 端口配置）。
+
+浏览器打开 `http://localhost:18093`。
 
 ## 📦 开发模式
 
 ```bash
-# 同时启动后端和前端开发服务器，支持热更新
-npm run dev
+npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 ```
-
-开发时 Vite 会自动将 `/api` 请求代理到 Express 后端。
 
 ## ⚙️ 配置
 
 ### 端口
-
-编辑 `server/config.json`，重启生效：
-
+编辑 `server/config.json`：
 ```json
-{ "port": 8080 }
+{ "port": 12345 }
 ```
 
-`start.bat` 启动时自动读取该配置，无需手动输入。
+### 根文件夹
+网页界面管理（侧边栏 `+`），数据保存在 `server/data/folders.json`。
 
-### 视图模式
+三种添加方式：✏️ 手动输入 / 📁 系统选择器 / 🖱️ 拖拽
 
-顶部工具栏右侧切换：
+### 忽略文件夹
+侧边栏底部 `🚫 Ignored` 区域 → 拖拽或手动添加路径，浏览/搜索自动跳过。
 
-| 图标 | 模式 | 说明 |
-|------|------|------|
-| ⊞ | 网格 | 整齐的方形卡片，适合快速浏览 |
-| ▥ | 瀑布 | 保持原始宽高比，适合摄影作品 |
-| ☰ | 列表 | 缩略图 + 文件名 + 尺寸/格式等详细信息 |
-| ⊡ | 全部 | 递归遍历子目录，展示所有媒体并标注来源 |
-
-### 根目录
-
-通过网页界面管理文件夹（点击侧边栏的 `+` 按钮）。数据保存在 `server/data/folders.json`。
-
-三种添加文件夹的方式：
-
-| 方式 | 操作 |
-|------|------|
-| ✏️ 手动输入 | 在输入框中输入或粘贴路径 |
-| 📁 浏览选择 | 点击文件夹图标，弹出系统原生文件夹选择对话框 |
-| 🖱️ 拖拽 | 从资源管理器拖拽文件夹到侧边栏 |
-
-### 支持的路径格式
-
+### 路径格式
 | 格式 | 示例 |
 |------|------|
 | 本地磁盘 | `D:\照片` |
 | 映射驱动器 | `Z:\共享` |
-| UNC IP 路径 | `\\192.168.1.100\share` |
-| UNC 主机名 | `\\NAS\媒体` |
+| UNC | `\\NAS\媒体` |
 
-## ⌨️ 键盘快捷键（灯箱模式）
+## ⌨️ 键盘快捷键
 
+### 全局
+| 按键 | 功能 |
+|------|------|
+| `Ctrl+F` | 聚焦搜索框 |
+| `F5` | 刷新当前目录 |
+| `Ctrl+A` | 全选 |
+
+### 灯箱
 | 按键 | 功能 |
 |------|------|
 | `←` `→` | 上一张 / 下一张 |
-| `空格` | 切换幻灯片播放（仅图片） |
+| `空格` | 幻灯片 启/停 |
+| `1` `2` `3` `4` | 幻灯片速度 1s/3s/5s/10s |
 | `+` `-` | 放大 / 缩小 |
-| `0` | 重置缩放 |
-| 双击 | 切换 1x / 2x 缩放 |
+| `0` | 重置缩放 & 旋转 |
+| `R` / `L` | 右旋 / 左旋 90° |
+| `I` | 切换信息面板 |
 | `Esc` | 关闭 |
+| 双击 | 切换 1x ↔ 2x |
 
 ## 📁 项目结构
 
 ```
 PicViewer/
-├── start.bat                  # Windows 一键启动脚本
-├── package.json               # 根项目脚本
+├── start.bat
+├── package.json
 ├── server/
 │   ├── index.js               # Express 入口
 │   ├── config.json            # 端口配置
 │   ├── routes/
-│   │   ├── folders.js         # 文件夹增删 + 原生选择器 API
-│   │   ├── browse.js          # 目录浏览 API
-│   │   └── image.js           # 图片/视频流 + 缩略图
+│   │   ├── folders.js         # 文件夹 CRUD + 系统选择器
+│   │   ├── browse.js          # 目录浏览 + 递归浏览
+│   │   ├── image.js           # 图片/视频流 + 缩略图
+│   │   ├── download.js        # 批量下载 ZIP
+│   │   ├── ignored.js         # 忽略文件夹
+│   │   ├── search.js          # 全量搜索
+│   │   └── actions.js         # 收藏/旋转/资源管理器
 │   ├── services/
-│   │   ├── browse.js          # 文件系统扫描
-│   │   └── image.js           # sharp 缩略图、视频 Range 流
+│   │   ├── browse.js          # 文件系统扫描 + 安全校验
+│   │   └── image.js           # sharp 缩略图 + ffmpeg 转码
 │   └── data/
-│       ├── store.js           # JSON 持久化
-│       └── folders.json       # 用户根目录配置（已 gitignore）
+│       ├── store.js           # JSON 持久化（原子写入）
+│       ├── folders.json       # 根目录配置
+│       ├── ignored_folders.json
+│       └── favorites.json
 └── client/
     ├── package.json
     ├── vite.config.js
+    ├── public/
+    │   ├── favicon.svg
+    │   └── icons/             # QingIcon SVG 图标
     └── src/
         ├── App.jsx / App.css
         ├── index.css
-        ├── hooks/
-        │   └── useApi.js      # API 请求封装
+        ├── hooks/useApi.js
         └── components/
-            ├── FolderTree     # 侧边栏：文件夹列表、增删、拖拽
+            ├── FolderTree     # 侧边栏文件夹导航 + 拖拽排序
             ├── ImageGrid      # 缩略图网格 + 懒加载
-            ├── Lightbox       # 全屏查看器（图片 + 视频）
-            └── SearchBar      # 文件名搜索
+            ├── Lightbox       # 全屏灯箱 + 预加载 + 旋转
+            ├── SearchBar      # 搜索框
+            └── IgnoredFolders # 忽略文件夹面板
 ```
 
 ## 🔧 API 接口
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| `GET` | `/api/folders` | 获取已配置的根目录列表 |
+| `GET` | `/api/folders` | 根目录列表 |
 | `POST` | `/api/folders` | 添加根目录 |
-| `POST` | `/api/folders/pick` | 打开系统原生文件夹选择器 |
+| `POST` | `/api/folders/pick` | 系统原生文件夹选择器 |
 | `DELETE` | `/api/folders/:id` | 移除根目录 |
-| `GET` | `/api/browse?path=` | 浏览目录（返回子文件夹 + 媒体文件） |
-| `GET` | `/api/image/view?path=` | 流式传输原始文件（图片或视频，支持 Range） |
-| `GET` | `/api/image/thumbnail?path=&size=` | 生成/获取缩略图 |
+| `PUT` | `/api/folders/reorder` | 拖拽排序 |
+| `GET` | `/api/browse?path=` | 浏览目录 |
+| `GET` | `/api/browse/recursive?path=&fast=1` | 递归浏览（fast 跳过元数据） |
+| `GET` | `/api/image/view?path=` | 流式传输原文件（支持 Range） |
+| `GET` | `/api/image/thumbnail?path=&size=&fit=` | 缩略图 |
+| `GET` | `/api/download?paths=` | 批量 ZIP 下载 |
+| `POST` | `/api/download` | 批量 ZIP 下载（POST 大列表） |
+| `GET` | `/api/ignored` | 忽略文件夹列表 |
+| `POST` | `/api/ignored` | 添加忽略 |
+| `DELETE` | `/api/ignored/:id` | 移除忽略 |
+| `GET` | `/api/search?q=` | 全量搜索 |
+| `GET` | `/api/actions` | 收藏列表 |
+| `POST` | `/api/actions` | 添加收藏 |
+| `DELETE` | `/api/actions/:id` | 移除收藏 |
+| `GET` | `/api/actions/folder-preview?path=` | 文件夹预览图 |
+| `POST` | `/api/actions/rotate` | 旋转图片 |
+| `POST` | `/api/actions/explorer` | 在资源管理器中打开 |
 
 ## 📄 支持的文件格式
 

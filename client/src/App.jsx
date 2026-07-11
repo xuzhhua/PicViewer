@@ -46,7 +46,7 @@ function sortMedia(items, sortBy) {
 }
 
 export default function App() {
-  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder } = useApi();
+  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -57,12 +57,60 @@ export default function App() {
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
+  const [thumbSize, setThumbSize] = useState(() => parseInt(localStorage.getItem('picviewer-thumb-size')) || 300);
+  const [favorites, setFavorites] = useState([]);
   const isRecursive = viewMode === 'all';
 
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('picviewer-theme', theme);
   }, [theme]);
+
+  // Favorites
+  const fetchFavorites = useCallback(async () => {
+    try { const r = await fetch('/api/actions'); setFavorites(await r.json()); } catch (_) {}
+  }, []);
+  const addFavorite = useCallback(async (item) => {
+    try {
+      await fetch('/api/actions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:item.name, path:item.path, type:item.type||'image' }) });
+      fetchFavorites();
+    } catch (_) {}
+  }, [fetchFavorites]);
+  const removeFavorite = useCallback(async (id) => {
+    try { await fetch(`/api/actions/${id}`, { method:'DELETE' }); fetchFavorites(); } catch (_) {}
+  }, [fetchFavorites]);
+  React.useEffect(() => { fetchFavorites(); }, []); // eslint-disable-line
+
+  // Multi-select (must be before keyboard effect that references selectAll)
+  const selectAll = useCallback(() => {
+    const all = [...(browseData?.images || []), ...(browseData?.videos || [])];
+    setSelectedPaths(new Set(all.map(m => m.path)));
+  }, [browseData]);
+
+  // Keyboard shortcuts
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || lightboxIndex >= 0) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); document.querySelector('.search-bar input')?.focus(); }
+      if (e.key === 'F5') { e.preventDefault(); if (currentPath) browse(currentPath, true); else browse('', true); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') { e.preventDefault(); selectAll(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [currentPath, browse, lightboxIndex, selectAll]);
+
+  // Debounced search across all folders
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        search(searchQuery.trim());
+      } else if (browseData?.isSearch) {
+        // Clear search results when query is cleared
+        browse('', true);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBrowse = useCallback((folderPath) => {
     setCurrentPath(folderPath);
@@ -110,11 +158,6 @@ export default function App() {
     });
   }, []);
 
-  const selectAll = useCallback(() => {
-    const all = [...(browseData?.images || []), ...(browseData?.videos || [])];
-    setSelectedPaths(new Set(all.map(m => m.path)));
-  }, [browseData]);
-
   const clearSelection = useCallback(() => {
     setSelectedPaths(new Set());
   }, []);
@@ -138,21 +181,42 @@ export default function App() {
     setContextMenu(null);
   }, []);
 
-  const handleOpenInExplorer = useCallback((item) => {
-    const sep = item.path.includes('\\') ? '\\' : '/';
-    const dir = item.path.substring(0, item.path.lastIndexOf(sep));
-    window.open(`file:///${dir.replace(/\\/g, '/')}`, '_blank');
+  const handleOpenInExplorer = useCallback(async (item) => {
+    try { await fetch('/api/actions/explorer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ path: item.path }) }); } catch (_) {}
     setContextMenu(null);
   }, []);
 
   const handleBatchDownload = useCallback(async () => {
     if (selectedPaths.size === 0) return;
     const paths = [...selectedPaths];
-    const encoded = paths.map(p => {
+    const encodedPaths = paths.map(p => {
       const utf8Bytes = new TextEncoder().encode(p);
       return btoa(String.fromCharCode(...utf8Bytes));
-    }).join(',');
-    window.open(`/api/download?paths=${encoded}`, '_blank');
+    });
+
+    // Use POST to avoid URL length limits
+    try {
+      const res = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: encodedPaths })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Download failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'picviewer-download.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e.message);
+    }
     setSelectedPaths(new Set());
   }, [selectedPaths]);
 
@@ -237,6 +301,25 @@ export default function App() {
           onRemoveIgnored={removeIgnored}
           onPickIgnored={pickIgnoredFolder}
         />
+        {favorites.length > 0 && (
+          <div className="ft-section fav-section">
+            <div className="ft-section-header">
+              <span>⭐ Favorites ({favorites.length})</span>
+            </div>
+            <div className="ft-list">
+              {favorites.map(fav => (
+                <div key={fav.id} className="ft-item fav-item" onClick={() => {
+                  const sep = fav.path.includes('\\') ? '\\' : '/';
+                  const dir = fav.path.substring(0, fav.path.lastIndexOf(sep));
+                  handleBrowse(dir);
+                }} title={fav.path}>
+                  <div className="ft-item-name">📷 {fav.name}</div>
+                  <button className="ft-remove-btn" onClick={e => { e.stopPropagation(); removeFavorite(fav.id); }} title="移除收藏">✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="切换主题">
             {theme === 'dark' ? '🌙' : '☀️'}
@@ -253,7 +336,7 @@ export default function App() {
           </button>
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-          {browseData && (
+          {browseData && !browseData.isSearch && (
             <>
               <div className="view-mode-switcher">
                 {VIEW_MODES.map(m => (
@@ -262,8 +345,10 @@ export default function App() {
                     className={`vm-btn${viewMode === m.key ? ' active' : ''}`}
                     onClick={() => handleViewMode(m.key)}
                     title={m.label}
+                    aria-label={m.label}
+                    aria-pressed={viewMode === m.key}
                   >
-                    <img src={m.icon} alt={m.label} width="18" height="18" />
+                    <img src={m.icon} alt="" width="18" height="18" />
                   </button>
                 ))}
               </div>
@@ -273,15 +358,26 @@ export default function App() {
                   <option key={o.key} value={o.key}>{o.label}</option>
                 ))}
               </select>
+
+              <div className="thumb-size-slider" title="缩略图大小">
+                <input type="range" min="120" max="500" value={thumbSize}
+                  onChange={e => { const v = parseInt(e.target.value); setThumbSize(v); localStorage.setItem('picviewer-thumb-size', v); }} />
+              </div>
+
+              <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)">🔄</button>
             </>
           )}
 
-          <div className="breadcrumb">
-            <span onClick={handleBackToRoot}><img src="/icons/house.svg" alt="Home" width="16" height="16" className="crumb-icon" /> Root</span>
+          <div className="breadcrumb" role="navigation" aria-label="文件路径导航">
+            <button className="crumb-link" onClick={handleBackToRoot} aria-label="返回根目录">
+              <img src="/icons/house.svg" alt="" width="16" height="16" className="crumb-icon" /> Root
+            </button>
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={crumb.path}>
-                <span className="sep">›</span>
-                <span onClick={() => handleBrowse(crumb.path)}>{crumb.name}</span>
+                <span className="sep" aria-hidden="true">›</span>
+                <button className="crumb-link" onClick={() => handleBrowse(crumb.path)}>
+                  {crumb.name}
+                </button>
               </React.Fragment>
             ))}
           </div>
@@ -306,6 +402,14 @@ export default function App() {
             </div>
           ) : browseData ? (
             <>
+              {browseData.isSearch && (
+                <div className="search-result-header">
+                  <span>🔍 搜索 "<strong>{searchQuery}</strong>" — 找到 {browseData.total || (filteredImages.length + filteredVideos.length)} 个结果</span>
+                  {browseData.truncated && <span className="search-truncated">（结果已截断，请细化搜索词）</span>}
+                  <button className="search-clear-btn" onClick={() => setSearchQuery('')}>✕ 清除</button>
+                </div>
+              )}
+
               {browseData.folders && browseData.folders.length > 0 && (
                 <div className="folder-section">
                   <h3 className="section-title">📁 Folders</h3>
@@ -334,10 +438,13 @@ export default function App() {
                       handleOpenLightbox(i);
                     }
                   }}
-                  viewMode={viewMode}
+                  viewMode={browseData.isSearch ? 'grid' : viewMode}
                   selectedPaths={selectedPaths}
                   onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
                   onContextMenu={handleContextMenu}
+                  onBrowseFolder={handleBrowse}
+                  isSearch={browseData.isSearch}
+                  thumbSize={thumbSize}
                 />
               )}
 
@@ -351,10 +458,13 @@ export default function App() {
                       handleOpenLightbox(filteredImages.length + i);
                     }
                   }}
-                  viewMode={viewMode}
+                  viewMode={browseData.isSearch ? 'grid' : viewMode}
                   selectedPaths={selectedPaths}
                   onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
                   onContextMenu={handleContextMenu}
+                  onBrowseFolder={handleBrowse}
+                  isSearch={browseData.isSearch}
+                  thumbSize={thumbSize}
                 />
               )}
 
@@ -379,13 +489,36 @@ export default function App() {
       {contextMenu && (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
           <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}>📋 复制路径</div>
-          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}>📂 打开所在文件夹</div>
+          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}>📂 在文件管理器中打开</div>
           <div className="context-item" onClick={() => {
             const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path)))
               .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
             window.open(`/api/image/view?path=${enc}`, '_blank');
             setContextMenu(null);
           }}>🔗 新标签页打开</div>
+          <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}>⭐ 添加到收藏</div>
+          {contextMenu.item.type === 'image' && (
+            <div className="context-item" onClick={async () => {
+              try {
+                const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+                const img = await fetch(`/api/image/view?path=${enc}`).then(r => r.blob());
+                await navigator.clipboard.write([new ClipboardItem({ [img.type]: img })]);
+              } catch (_) {}
+              setContextMenu(null);
+            }}>🖼️ 复制图片</div>
+          )}
+          {contextMenu.item.folder && contextMenu.item.folder !== '.' && (
+            <div className="context-item" onClick={() => {
+              const sep = contextMenu.item.path.includes('\\') ? '\\' : '/';
+              const dir = contextMenu.item.path.substring(0, contextMenu.item.path.lastIndexOf(sep));
+              handleBrowse(dir);
+              setContextMenu(null);
+            }}>📁 跳转到所在文件夹</div>
+          )}
+          <div className="context-separator" />
+          <div className="context-item context-shortcut">
+            <span>快捷键提示: Ctrl+F 搜索 · F5 刷新 · Ctrl+A 全选</span>
+          </div>
         </div>
       )}
 
@@ -396,6 +529,9 @@ export default function App() {
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
           onNavigate={setLightboxIndex}
+          favorites={favorites}
+          onAddFavorite={addFavorite}
+          onRemoveFavorite={removeFavorite}
         />
       )}
     </div>
