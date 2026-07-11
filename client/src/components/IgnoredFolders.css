@@ -1,16 +1,15 @@
 .ignored-section {
-  border-top: 1px solid var(--border);
-  padding-top: 4px;
+  /* inherits ft-section panel styling */
 }
 
 .ignored-header {
   cursor: pointer;
   user-select: none;
+  transition: background 0.15s;
 }
 
 .ignored-header:hover {
   background: var(--bg-hover);
-  border-radius: 4px;
 }
 
 .ignored-toggle {
@@ -26,11 +25,12 @@
   display: none;
 }
 
+/* === Drop zone === */
 .ignored-drop-zone {
-  min-height: 40px;
-  border: 2px dashed transparent;
+  min-height: 36px;
+  border: 1px dashed var(--border);
   border-radius: 6px;
-  margin: 0 12px 8px;
+  margin: 4px 10px 8px;
   transition: border-color 0.2s, background 0.2s;
 }
 
@@ -38,27 +38,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 8px;
+  padding: 14px 8px;
 }
 
 .ignored-drop-zone.drag-over {
   border-color: var(--accent);
-  background: rgba(var(--accent-rgb, 74, 158, 255), 0.08);
+  border-style: solid;
+  background: rgba(74, 158, 255, 0.05);
 }
 
 .ignored-empty-hint {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
   pointer-events: none;
+  opacity: 0.6;
 }
 
 .ignored-drop-zone.drag-over .ignored-empty-hint {
   color: var(--accent);
+  opacity: 1;
 }
 
+/* === Ignored items === */
 .ignored-item {
-  opacity: 0.85;
+  border-left: 3px solid transparent !important;
+  opacity: 0.75;
+  padding: 6px 12px !important;
 }
 
 .ignored-item:hover {
@@ -74,7 +80,7 @@
 }
 
 .ignored-name {
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,11 +92,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .ignored-item.missing {
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 .ignored-item.missing .ignored-name {

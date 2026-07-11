@@ -126,7 +126,10 @@ export default function FolderTree({
 
       <div className="ft-section">
         <div className="ft-section-header">
-          <span>📂 My Folders</span>
+          <span>
+            📂 My Folders
+            {folders.length > 0 && <span className="ft-badge">{folders.length}</span>}
+          </span>
           <button
             className="ft-add-btn"
             onClick={() => setShowAdd(!showAdd)}
@@ -178,7 +181,7 @@ export default function FolderTree({
                   onClick={() => onBrowse(folder.path)}
                   title={folder.path}
                 >
-                  📁 {folder.name}
+                  <span className="ft-icon">📂</span> {folder.name}
                 </div>
                 <button
                   className="ft-remove-btn"
@@ -197,22 +200,25 @@ export default function FolderTree({
       {browseData && browseData.folders && browseData.folders.length > 0 && (
         <div className="ft-section">
           <div className="ft-section-header">
-            <span>📁 {browseData.name || 'Subfolders'}</span>
+            <span>
+              📁 {browseData.name || 'Subfolders'}
+              <span className="ft-badge">{browseData.folders.length}</span>
+            </span>
           </div>
           <div className="ft-list">
             {currentPath && (
               <div className="ft-item ft-back" onClick={onBackToRoot}>
-                <span>⬆ Back to root</span>
+                <span className="ft-icon">⬆</span> Back to root
               </div>
             )}
             {browseData.folders.map(folder => (
               <div
                 key={folder.path}
-                className={`ft-item ${currentPath === folder.path ? 'active' : ''}`}
+                className={`ft-item ft-sub ${currentPath === folder.path ? 'active' : ''}`}
                 onClick={() => onBrowse(folder.path)}
                 title={folder.path}
               >
-                📁 {folder.name}
+                <span className="ft-icon">📁</span> {folder.name}
               </div>
             ))}
           </div>

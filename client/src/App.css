@@ -15,18 +15,22 @@
 }
 
 .sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 16px;
-  font-weight: 600;
+  padding: 14px 16px;
+  font-size: 18px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  letter-spacing: -0.3px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-header .logo {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  filter: grayscale(0.1);
 }
 
 .main-area {
@@ -53,13 +57,30 @@
   gap: 4px;
   font-size: 13px;
   color: var(--text-muted);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   flex: 1;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE */
+  -webkit-overflow-scrolling: touch;
+}
+
+.topbar .breadcrumb::-webkit-scrollbar {
+  display: none;
 }
 
 .topbar .breadcrumb span {
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.topbar .breadcrumb span:last-child {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-weight: 500;
 }
 
 .topbar .breadcrumb span:hover {
@@ -69,6 +90,26 @@
 .topbar .breadcrumb .sep {
   color: #555;
   cursor: default;
+  flex-shrink: 0;
+}
+
+/* === Inline icon alignment === */
+.crumb-icon,
+.title-icon,
+.thumb-icon,
+.lb-icon {
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  flex-shrink: 0;
+}
+
+.crumb-icon {
+  margin-right: 2px;
+}
+
+.title-icon {
+  margin-right: 4px;
 }
 
 .content {
@@ -251,21 +292,33 @@
   height: 28px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s, color 0.15s;
 }
 
+.vm-btn img {
+  opacity: 0.5;
+  transition: opacity 0.15s, filter 0.15s;
+}
+
 .vm-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+}
+
+.vm-btn:hover img {
+  opacity: 0.8;
 }
 
 .vm-btn.active {
   background: var(--accent);
   color: #fff;
+}
+
+.vm-btn.active img {
+  opacity: 1;
+  filter: brightness(0) invert(1);
 }
 
 /* Sidebar overlay for mobile */
@@ -306,24 +359,37 @@
   }
 
   .topbar {
-    padding: 0 10px;
-    gap: 6px;
+    padding: 0 8px;
+    gap: 4px;
+    flex-wrap: nowrap;
   }
 
   .topbar .breadcrumb {
-    font-size: 11px;
-    gap: 2px;
+    font-size: 12px;
+    gap: 3px;
+    min-width: 0;
   }
 
   .view-mode-switcher {
     gap: 0;
     padding: 1px;
+    flex-shrink: 0;
   }
 
   .vm-btn {
     width: 26px;
     height: 24px;
-    font-size: 13px;
+  }
+
+  .vm-btn img {
+    width: 14px;
+    height: 14px;
+  }
+
+  .sort-select {
+    font-size: 11px;
+    padding: 2px 3px;
+    flex-shrink: 0;
   }
 
   .content {

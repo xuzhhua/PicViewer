@@ -135,7 +135,10 @@ export default function IgnoredFolders({
     <div className={`ft-section ignored-section${collapsed ? ' collapsed' : ''}`}>
       <div className="ft-section-header ignored-header" onClick={toggleCollapse}>
         <span className="ignored-toggle">{collapsed ? '▶' : '▼'}</span>
-        <span>🚫 Ignored{count > 0 && ` (${count})`}</span>
+        <span>
+          🚫 Ignored
+          {count > 0 && <span className="ft-badge">{count}</span>}
+        </span>
         <button
           className="ft-add-btn"
           onClick={() => { setCollapsed(false); setShowAdd(!showAdd); }}

@@ -1,59 +1,87 @@
 .folder-tree {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+/* === Section panel === */
 .ft-section {
-  margin-bottom: 8px;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .ft-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  cursor: default;
+  user-select: none;
 }
 
+.ft-section-header .ft-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* === Add button === */
 .ft-add-btn {
   background: none;
-  border: 1px solid var(--border);
-  color: var(--text);
+  border: none;
+  color: var(--text-muted);
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  transition: background 0.15s;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
 }
 
 .ft-add-btn:hover {
   background: var(--bg-hover);
+  color: var(--text);
 }
 
+/* === Add form === */
 .ft-add-form {
-  padding: 0 16px 8px;
+  padding: 6px 12px 10px;
   display: flex;
   gap: 6px;
 }
 
 .ft-add-form input {
   flex: 1;
-  background: var(--bg);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-size: 12px;
   outline: none;
+  transition: border-color 0.2s;
 }
 
 .ft-add-form input:focus {
@@ -63,12 +91,14 @@
 .ft-add-form button {
   background: var(--accent);
   border: none;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
+  color: #fff;
+  padding: 6px 11px;
+  border-radius: 5px;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .ft-add-form button:hover {
@@ -78,55 +108,66 @@
 .ft-browse-btn {
   background: var(--bg-hover) !important;
   border: 1px solid var(--border) !important;
-  padding: 6px 10px !important;
+  color: var(--text-muted) !important;
+  padding: 6px 9px !important;
   font-size: 14px !important;
 }
 
 .ft-browse-btn:hover {
   background: var(--border) !important;
+  color: var(--text) !important;
 }
 
-/* Drag and drop */
+/* === Drag & drop overlay === */
 .folder-tree {
   position: relative;
 }
 
-.folder-tree.drag-over {
-  outline: 2px dashed var(--accent);
-  outline-offset: -4px;
+.folder-tree.drag-over::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .ft-drop-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(74, 158, 255, 0.08);
+  background: rgba(74, 158, 255, 0.07);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 11;
   pointer-events: none;
 }
 
 .ft-drop-overlay span {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--accent);
-  text-shadow: 0 0 20px rgba(74, 158, 255, 0.5);
 }
 
+/* === List === */
 .ft-list {
   display: flex;
   flex-direction: column;
+  padding-bottom: 4px;
 }
 
 .ft-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 6px 16px;
+  padding: 7px 12px;
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.1s;
-  gap: 4px;
+  gap: 6px;
+  transition: background 0.15s ease;
+  border-left: 3px solid transparent;
 }
 
 .ft-item:hover {
@@ -134,8 +175,9 @@
 }
 
 .ft-item.active {
-  background: rgba(74, 158, 255, 0.12);
-  color: var(--accent);
+  background: rgba(74, 158, 255, 0.08);
+  border-left-color: var(--accent);
+  color: var(--text);
 }
 
 .ft-item-name {
@@ -143,17 +185,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
+.ft-item .ft-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.ft-item.active .ft-icon {
+  opacity: 1;
+}
+
+/* === Remove button === */
 .ft-remove-btn {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   padding: 2px 4px;
+  border-radius: 3px;
   opacity: 0;
-  transition: opacity 0.1s, color 0.1s;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
 }
 
 .ft-item:hover .ft-remove-btn {
@@ -162,21 +218,24 @@
 
 .ft-remove-btn:hover {
   color: var(--danger);
+  background: rgba(224, 85, 85, 0.12);
 }
 
+/* === Drag handle === */
 .ft-drag-handle {
   color: var(--text-muted);
   cursor: grab;
-  font-size: 12px;
-  padding: 0 2px;
+  font-size: 11px;
+  padding: 0 1px;
   user-select: none;
   opacity: 0;
-  transition: opacity 0.1s;
+  transition: opacity 0.15s;
   letter-spacing: -2px;
+  flex-shrink: 0;
 }
 
 .ft-item:hover .ft-drag-handle {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .ft-drag-handle:active {
@@ -184,16 +243,73 @@
 }
 
 .ft-item.drag-target {
-  border-top: 2px solid var(--accent);
+  box-shadow: inset 0 2px 0 var(--accent);
 }
 
+/* === Back button === */
 .ft-back {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  font-style: italic;
+  padding: 6px 12px;
+  border-left-color: transparent !important;
+  opacity: 0.8;
 }
 
+.ft-back:hover {
+  color: var(--text);
+  opacity: 1;
+}
+
+.ft-back .ft-icon {
+  font-size: 13px;
+}
+
+/* === Subfolder depth indentation === */
+.ft-item.ft-sub {
+  padding-left: 28px;
+}
+
+.ft-item.ft-sub::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.5;
+}
+
+.ft-item.ft-sub::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 50%;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.3;
+}
+
+/* Nested subfolder depth lines */
+.ft-item.ft-sub + .ft-item.ft-sub::after {
+  bottom: 0;
+  top: 0;
+}
+
+.ft-item.ft-sub + .ft-item.ft-sub:last-of-type::after,
+.ft-item.ft-sub:last-of-type::after {
+  bottom: 50%;
+  height: 50%;
+  top: 0;
+}
+
+/* === Empty state === */
 .ft-empty {
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-size: 12px;
   color: var(--text-muted);
+  text-align: center;
+  opacity: 0.6;
 }

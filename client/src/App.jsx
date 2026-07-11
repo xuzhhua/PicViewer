@@ -8,10 +8,10 @@ import useApi from './hooks/useApi';
 import './App.css';
 
 const VIEW_MODES = [
-  { key: 'grid', icon: '⊞', label: '网格' },
-  { key: 'waterfall', icon: '▥', label: '瀑布' },
-  { key: 'list', icon: '☰', label: '列表' },
-  { key: 'all', icon: '⊡', label: '全部（含子目录）' },
+  { key: 'grid', icon: '/icons/grid.svg', label: '网格' },
+  { key: 'waterfall', icon: '/icons/waterfall.svg', label: '瀑布' },
+  { key: 'list', icon: '/icons/list.svg', label: '列表' },
+  { key: 'all', icon: '/icons/all.svg', label: '全部（含子目录）' },
 ];
 
 const SORT_OPTIONS = [
@@ -216,7 +216,7 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="sidebar-header">
-          <span className="logo">🖼️</span>
+          <span className="logo"><img src="/icons/picture.svg" alt="PicViewer" width="24" height="24" /></span>
           PicViewer
         </div>
         <FolderTree
@@ -262,7 +262,7 @@ export default function App() {
                     onClick={() => handleViewMode(m.key)}
                     title={m.label}
                   >
-                    {m.icon}
+                    <img src={m.icon} alt={m.label} width="18" height="18" />
                   </button>
                 ))}
               </div>
@@ -276,7 +276,7 @@ export default function App() {
           )}
 
           <div className="breadcrumb">
-            <span onClick={handleBackToRoot}>🏠 Root</span>
+            <span onClick={handleBackToRoot}><img src="/icons/house.svg" alt="Home" width="16" height="16" className="crumb-icon" /> Root</span>
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={crumb.path}>
                 <span className="sep">›</span>

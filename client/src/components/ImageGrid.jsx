@@ -58,7 +58,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
 
   return (
     <div className="image-section">
-      <h3 className="section-title">🖼️ {viewMode === 'all' ? '全部图片' : '图片'} ({images.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
+      <h3 className="section-title"><img src="/icons/picture.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部图片' : '图片'} ({images.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
       <div className={getGridClass()}>
         {images.map((img, index) => (
           <MediaCard
@@ -189,7 +189,7 @@ function LazyThumbnail({ src, alt, isVideo }) {
   if (error) {
     return (
       <div className="thumb-error">
-        <span>{isVideo ? '🎬' : '🖼️'}</span>
+        <span>{isVideo ? '🎬' : <img src="/icons/picture.svg" alt="" width="14" height="14" className="thumb-icon" />}</span>
       </div>
     );
   }

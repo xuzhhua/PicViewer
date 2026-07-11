@@ -228,7 +228,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate }) 
       {/* Top bar */}
       <div className="lightbox-topbar" onClick={e => e.stopPropagation()}>
         <div className="lightbox-info">
-          <span className="lightbox-type">{isVideo ? '🎬' : '🖼️'}</span>
+          <span className="lightbox-type">{isVideo ? '🎬' : <img src="/icons/picture.svg" alt="" width="16" height="16" className="lb-icon" />}</span>
           <span className="lightbox-filename">{item.name}</span>
           <span className="lightbox-counter">{currentIndex + 1} / {images.length}</span>
           {zoom !== 1 && <span className="lightbox-zoom-label">{Math.round(zoom * 100)}%</span>}
