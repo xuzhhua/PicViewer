@@ -303,50 +303,52 @@
   max-width: 100%;
 }
 
-/* Mobile */
+/* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .media-grid-default {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
   }
 
   .media-waterfall {
     column-count: 2;
-    column-gap: 8px;
+    column-gap: 10px;
   }
 
   .media-waterfall .image-card {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
+  /* 列表模式增大触控区域 */
   .media-list-item {
-    padding: 6px 8px;
-    gap: 8px;
+    padding: 10px 8px;
+    gap: 10px;
   }
 
   .media-list-thumb {
-    width: 60px;
-    height: 45px;
+    width: 72px;
+    height: 54px;
   }
 
+  /* 卡片信息字体放大 */
   .image-card-info {
-    padding: 6px 8px;
+    padding: 8px 10px;
   }
 
   .image-card-name {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .image-card-meta {
-    font-size: 9px;
-  }
-
-  .media-list-name {
     font-size: 11px;
   }
 
+  .media-list-name {
+    font-size: 13px;
+  }
+
   .media-list-meta {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .media-list-detail {
@@ -354,19 +356,111 @@
   }
 
   .folder-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 
   .folder-card {
-    padding: 12px;
+    padding: 14px;
+  }
+
+  .folder-icon {
+    font-size: 28px;
+  }
+
+  .folder-name {
+    font-size: 13px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  /* 复选框增大 */
+  .image-check input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .media-check input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ===== 小屏手机 ===== */
+@media (max-width: 480px) {
+  .media-grid-default {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 6px;
+  }
+
+  .media-waterfall {
+    column-count: 1;
+  }
+
+  .media-list-item {
+    padding: 8px 6px;
+    gap: 8px;
+  }
+
+  .media-list-thumb {
+    width: 56px;
+    height: 42px;
+  }
+
+  .image-card-info {
+    padding: 6px 8px;
+  }
+
+  .image-card-name {
+    font-size: 12px;
+  }
+
+  .image-card-meta {
+    font-size: 10px;
+  }
+
+  .media-list-name {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .media-list-meta {
+    font-size: 10px;
+  }
+
+  .folder-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+  }
+
+  .folder-card {
+    padding: 10px;
+    gap: 6px;
   }
 
   .folder-icon {
     font-size: 24px;
   }
 
-  .section-title {
+  .folder-name {
     font-size: 11px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .image-check input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .media-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -379,12 +473,5 @@
 @media (min-width: 1201px) {
   .media-waterfall {
     column-count: 4;
-  }
-}
-
-/* Very small phones */
-@media (max-width: 420px) {
-  .media-waterfall {
-    column-count: 1;
   }
 }

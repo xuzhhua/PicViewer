@@ -35,6 +35,8 @@
 html, body, #root {
   height: 100%;
   overflow: hidden;
+  /* 移动端优化：禁止双击缩放，消除点击延迟 */
+  touch-action: manipulation;
 }
 
 body {
@@ -62,10 +64,38 @@ body {
   background: #555;
 }
 
-/* Mobile responsive */
+/* Mobile responsive — 全局 */
 @media (max-width: 768px) {
   :root {
     --sidebar-width: 260px;
     --topbar-height: 44px;
+  }
+
+  /* 移动端增大基础字号和触控目标 */
+  body {
+    font-size: 15px;
+  }
+
+  button,
+  select,
+  input[type="range"]::-webkit-slider-thumb {
+    min-height: 36px;
+  }
+
+  /* 移动端滚动条更窄 */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+/* 小屏手机 */
+@media (max-width: 480px) {
+  :root {
+    --topbar-height: auto;
+  }
+
+  body {
+    font-size: 14px;
   }
 }

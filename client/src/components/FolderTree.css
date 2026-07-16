@@ -315,3 +315,89 @@
   text-align: center;
   opacity: 0.6;
 }
+
+/* ===== 手机端 ===== */
+@media (max-width: 768px) {
+  .folder-tree {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .ft-section-header {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .ft-item {
+    padding: 10px 12px;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  .ft-item .ft-icon {
+    font-size: 17px;
+  }
+
+  .ft-remove-btn {
+    font-size: 13px;
+    padding: 4px 6px;
+    opacity: 0.6;
+  }
+
+  .ft-add-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+  }
+
+  .ft-add-form input {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+
+  .ft-add-form button {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .ft-back {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .ft-empty {
+    font-size: 13px;
+    padding: 14px 16px;
+  }
+
+  /* Favorites */
+  .fav-item .ft-item-name {
+    font-size: 13px;
+  }
+
+  /* Ignored */
+  .ignored-name {
+    font-size: 13px;
+  }
+
+  .ignored-path {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ft-item {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .ft-section-header {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .ft-add-form input {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+}

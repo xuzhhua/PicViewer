@@ -486,10 +486,31 @@
   display: none;
 }
 
-/* Mobile responsive */
+/* ===== 平板 / 中等屏幕 ===== */
+@media (max-width: 1024px) {
+  .thumb-size-slider input[type="range"] {
+    width: 60px;
+  }
+  .thumb-size-label {
+    font-size: 9px;
+    min-width: 22px;
+  }
+}
+
+/* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .hamburger {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .hamburger img {
+    width: 24px;
+    height: 24px;
   }
 
   .sidebar {
@@ -518,15 +539,29 @@
     animation: fadeIn 0.2s ease;
   }
 
+  /* ---- 核心修复：topbar 换行，面包屑独占一行 ---- */
   .topbar {
-    padding: 0 6px;
-    gap: 4px;
-    flex-wrap: nowrap;
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--topbar-height);
   }
 
+  /* 面包屑移到最底部，独占整行 */
   .topbar .breadcrumb {
-    font-size: 11px;
-    gap: 2px;
+    order: 100;
+    width: 100%;
+    flex: none;
+    font-size: 13px;
+    padding: 4px 0;
+    border-top: 1px solid var(--border);
+    gap: 3px;
+  }
+
+  /* 控件行：紧凑排列 */
+  .search-bar {
+    flex: 1;
     min-width: 0;
   }
 
@@ -537,22 +572,22 @@
   }
 
   .vm-btn {
-    width: 30px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
   }
 
   .vm-btn img {
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
   }
 
   .sort-select {
-    font-size: 11px;
-    padding: 4px 2px;
+    font-size: 12px;
+    padding: 6px 4px;
     flex-shrink: 0;
   }
 
-  /* Hide non-essential controls on mobile to prevent topbar overflow */
+  /* 移动端隐藏缩略图滑块和刷新按钮 */
   .thumb-size-slider,
   .refresh-btn {
     display: none;
@@ -571,23 +606,94 @@
   .action-bar {
     flex-wrap: wrap;
     gap: 4px;
-    padding: 6px 8px;
-    font-size: 12px;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .action-bar .action-btn {
-    padding: 4px 10px;
-    font-size: 12px;
+    padding: 6px 12px;
+    font-size: 13px;
   }
 
   .search-result-header {
-    padding: 6px 4px;
-    font-size: 12px;
-    gap: 6px;
+    padding: 8px 4px;
+    font-size: 13px;
+    gap: 8px;
   }
 
   .card-folder-btn,
   .list-folder-btn {
     opacity: 0.7;
+  }
+
+  /* 空状态提示增大 */
+  .empty p {
+    font-size: 15px;
+  }
+}
+
+/* ===== 小屏手机 ===== */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .topbar .breadcrumb {
+    font-size: 12px;
+    padding: 3px 0;
+  }
+
+  .hamburger {
+    width: 36px;
+    height: 36px;
+  }
+
+  .hamburger img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .vm-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .vm-btn img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sort-select {
+    font-size: 11px;
+    padding: 4px 2px;
+  }
+
+  .content {
+    padding: 6px;
+  }
+
+  .sidebar-header {
+    font-size: 16px;
+    padding: 0 12px;
+  }
+
+  /* 面包屑按钮增大触控区域 */
+  .topbar .breadcrumb .crumb-link {
+    padding: 4px 6px;
+  }
+
+  .search-clear-btn {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+
+  .context-item {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .section-title {
+    font-size: 14px;
   }
 }

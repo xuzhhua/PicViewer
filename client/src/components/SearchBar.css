@@ -49,11 +49,35 @@
 /* Mobile */
 @media (max-width: 768px) {
   .search-bar {
-    width: 160px;
+    width: auto;
+    min-width: 0;
+    padding: 0 10px;
+    height: 34px;
+  }
+
+  .search-bar input {
+    font-size: 14px;
+    padding: 8px 0;
+  }
+
+  .search-icon {
+    font-size: 15px;
+  }
+
+  .search-clear {
+    font-size: 14px;
+    padding: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-bar {
+    height: 32px;
     padding: 0 8px;
   }
 
   .search-bar input {
-    font-size: 12px;
+    font-size: 13px;
+    padding: 6px 0;
   }
 }

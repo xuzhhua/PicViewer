@@ -343,74 +343,172 @@
   font-size: 18px;
 }
 
-/* Mobile */
+/* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .lightbox-topbar {
-    padding: 8px 12px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .lightbox-info {
+    flex: 1;
+    min-width: 0;
+    gap: 6px;
   }
 
   .lightbox-filename {
-    font-size: 12px;
-    max-width: 120px;
-  }
-
-  .lb-btn {
-    width: 30px;
-    height: 30px;
     font-size: 14px;
+    max-width: none;
+    flex: 1;
+    min-width: 0;
   }
 
-  .lightbox-nav {
-    width: 36px;
-    height: 52px;
+  .lightbox-type img {
+    width: 20px;
+    height: 20px;
   }
 
-  .lightbox-nav img {
-    width: 16px;
-    height: 16px;
+  .lightbox-counter {
+    font-size: 13px;
   }
 
-  .lightbox-prev { left: 4px; }
-  .lightbox-next { right: 4px; }
-
-  .lightbox-video {
-    max-width: 96vw;
-    max-height: 60vh;
+  .lightbox-zoom-label {
+    font-size: 13px;
   }
 
-  .lightbox-image {
-    max-width: 96vw;
-    max-height: 70vh;
-  }
-
-  .lightbox-thumbs {
-    padding: 6px 8px;
-    gap: 3px;
-  }
-
-  .lightbox-thumb {
-    width: 40px;
-    height: 40px;
-  }
-
-  .lightbox-hints {
-    gap: 8px;
-    font-size: 10px;
+  .lightbox-actions {
+    gap: 6px;
     flex-wrap: wrap;
   }
 
+  .lb-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-radius: 8px;
+  }
+
+  .lb-btn img {
+    width: 20px;
+    height: 20px;
+  }
+
   .lb-speed-select {
-    height: 30px;
+    height: 40px;
+    font-size: 13px;
+    padding: 4px 6px;
+  }
+
+  .lightbox-nav {
+    width: 44px;
+    height: 64px;
+    border-radius: 8px;
+  }
+
+  .lightbox-nav img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .lightbox-prev { left: 6px; }
+  .lightbox-next { right: 6px; }
+
+  .lightbox-video {
+    max-width: 98vw;
+    max-height: 55vh;
+  }
+
+  .lightbox-image {
+    max-width: 98vw;
+    max-height: 65vh;
+  }
+
+  .lightbox-thumbs {
+    padding: 8px 10px;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+
+  .lightbox-thumb {
+    width: 48px;
+    height: 48px;
+  }
+
+  .lightbox-hints {
+    gap: 10px;
     font-size: 11px;
-    padding: 2px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
   }
 
   .lightbox-info-panel {
-    left: 8px;
-    right: 8px;
+    top: 50px;
+    left: 6px;
+    right: 6px;
     width: auto;
     max-width: none;
     bottom: 60px;
-    max-height: 50vh;
+    max-height: 60vh;
+    padding: 16px;
+  }
+
+  .lightbox-info-panel h4 {
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+
+  .info-grid {
+    grid-template-columns: 70px 1fr;
+    gap: 8px 10px;
+    font-size: 13px;
+  }
+}
+
+/* ===== 小屏手机 ===== */
+@media (max-width: 480px) {
+  .lightbox-topbar {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .lightbox-filename {
+    font-size: 13px;
+  }
+
+  .lb-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lb-btn img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .lb-speed-select {
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .lightbox-nav {
+    width: 40px;
+    height: 56px;
+  }
+
+  .lightbox-nav img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .lightbox-thumb {
+    width: 42px;
+    height: 42px;
+  }
+
+  .lightbox-hints {
+    gap: 6px;
+    font-size: 10px;
+    padding: 6px 8px;
   }
 }
