@@ -2,9 +2,25 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>PicViewer - 本地图片浏览器</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0c0c0e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PicViewer" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+
+    <!-- SEO / Social -->
+    <meta name="description" content="本地图片与视频浏览管理工具" />
+    <meta property="og:title" content="PicViewer" />
+    <meta property="og:description" content="本地图片与视频浏览管理工具" />
+    <meta property="og:type" content="website" />
+
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
   </head>
   <body>
     <div id="root"></div>

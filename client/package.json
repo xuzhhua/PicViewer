@@ -6,13 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "capacitor:init": "npx cap init PicViewer com.picviewer.app --web-dir=dist",
+    "capacitor:add:android": "npx cap add android",
+    "capacitor:add:ios": "npx cap add ios",
+    "capacitor:sync": "npx cap sync",
+    "capacitor:open:android": "npx cap open android",
+    "capacitor:open:ios": "npx cap open ios",
+    "capacitor:build:android": "npm run build && npx cap sync android && npx cap open android",
+    "capacitor:build:ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "generate-icons": "node scripts/generate-icons.cjs"
   },
   "dependencies": {
+    "@capacitor/core": "^6.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",

@@ -48,6 +48,16 @@ Web 端本地图片/视频浏览器，支持局域网文件夹和映射驱动器
 - [x] 响应式适配 (移动端汉堡菜单/触控手势)
 - [x] 启动脚本 (start.bat) 自动读取端口
 
+### 阶段 6: 移动客户端 ✅
+- [x] PWA manifest.json（应用名、图标、全屏模式）
+- [x] Service Worker sw.js（离线缓存 + 网络优先 API 策略）
+- [x] Apple iOS 适配（apple-mobile-web-app meta 标签）
+- [x] PWA 图标生成（sharp: 192px + 512px PNG）
+- [x] Capacitor 配置（原生 APK/IPA 打包）
+- [x] 移动端触摸优化（44px 最小目标 + 全组件放大）
+- [x] 设计系统升级（字体/色彩/Z-index/交互状态/阴影）
+- [x] 文档更新（README + findings + progress）
+
 ### 未来计划
 - [x] 排序方式切换 (名称/日期/大小/类型)
 - [x] 多选模式 (Ctrl+点击 + 全选/取消)

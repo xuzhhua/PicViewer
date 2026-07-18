@@ -18,6 +18,7 @@ function getServerPort() {
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0',  // Allow mobile devices on same network to connect
     port: 5173,
     proxy: {
       '/api': {

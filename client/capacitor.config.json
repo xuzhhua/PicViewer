@@ -1,0 +1,17 @@
+{
+  "appId": "com.picviewer.app",
+  "appName": "PicViewer",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "capacitor",
+    "allowNavigation": ["*"],
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 500,
+      "backgroundColor": "#0c0c0e"
+    }
+  }
+}

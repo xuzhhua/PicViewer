@@ -1,5 +1,42 @@
 # PicViewer - 进度日志
 
+## 2026-07-18（移动客户端 + 触摸优化）
+
+### PWA 可安装应用
+- 创建 `manifest.json`：应用名、图标、全屏模式、主题色
+- 创建 `sw.js`：Service Worker 静态资源缓存 + API 网络优先策略
+- `index.html` 添加 Apple 移动端 meta 标签（`apple-mobile-web-app-capable` 等）
+- `main.jsx` 注册 Service Worker
+- 使用 sharp 从 SVG 自动生成 192px / 512px PNG 图标
+- 脚本 `npm run generate-icons` 可重新生成图标
+
+### Capacitor 原生打包
+- 安装 `@capacitor/core` + `@capacitor/cli`
+- 创建 `capacitor.config.json`：App ID、启动图、安全策略
+- `package.json` 添加全套构建脚本：
+  - `capacitor:add:android` / `capacitor:add:ios`
+  - `capacitor:build:android` / `capacitor:build:ios`
+  - `capacitor:sync`
+
+### 触摸体验全面升级
+- Apple HIG 标准：全局 `min-height: 44px` 触摸目标
+- Topbar 全面放大：hamburger 44×44、视图按钮 38×38、搜索栏 40px 高
+- Lightbox 按钮 44×44、导航箭头 48×72、缩略图 52×52
+- 图片网格卡片字体 14px、复选框 24×24、文件夹项 15px
+- 列表项 padding 加大、右键菜单项 15px
+- 侧边栏宽度 280px、移除按钮始终可见
+- Vite `host: '0.0.0.0'` 允许手机局域网访问
+
+### 设计系统升级
+- 色彩体系重构：暗色 `#0c0c0e`、accent `#5b8def`（低饱和蓝灰）
+- 字体栈升级：`'Segoe UI', 'SF Pro Display', system-ui`
+- 等宽字体：`'Cascadia Code', 'JetBrains Mono', 'Fira Code'`
+- Z-index 变量化：`--z-sidebar`、`--z-lightbox`、`--z-context-menu`
+- 全局交互状态：`:hover` / `:active`(scale) / `:focus-visible`(2px ring)
+- 阴影色调化：带 accent 色调的复合阴影
+- 100vh → 100dvh（iOS Safari 视口兼容）
+- 标题改为 sentence case（移除 `text-transform: uppercase`）
+
 ## 2026-07-11（下午 — 全面优化）
 
 ### 新功能

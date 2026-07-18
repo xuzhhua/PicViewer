@@ -33,6 +33,88 @@
 - 🌗 **深色/浅色主题** — 一键切换
 - 🎨 **QingIcon 图标** — 侧边栏、工具栏、视图切换全部使用矢量图标
 - 📐 **侧边栏美化** — 选中态左侧色条、子目录树状缩进、折叠面板、数量徽章
+- 📱 **移动端适配** — 44px 触摸目标、全尺寸响应式、PWA 可安装
+
+### 移动客户端
+- 📲 **PWA 安装** — 添加到手机主屏幕，全屏运行，支持离线缓存
+- 🤖 **Android 原生** — Capacitor 打包为 APK
+- 🍎 **iOS 原生** — Capacitor 打包为 IPA（需 macOS + Xcode）
+
+## 📱 移动客户端
+
+### 方案一：PWA（推荐，零配置）
+
+将 PicViewer 安装到手机主屏幕，像原生 App 一样全屏运行。
+
+**使用步骤：**
+
+```bash
+# 1. 确保手机和电脑在同一 WiFi 网络
+# 2. 启动 PicViewer
+npm start        # 生产模式：http://<电脑IP>:18093
+# 或
+npm run dev      # 开发模式：http://<电脑IP>:5173
+```
+
+**安装到手机：**
+
+| 平台 | 操作 |
+|------|------|
+| **Android** | Chrome 打开 → 自动弹出"添加到主屏幕" → 点击安装 |
+| **iOS** | Safari 打开 → 点击分享按钮 → "添加到主屏幕" → 确认 |
+
+**PWA 特性：**
+- ✅ 全屏运行（隐藏浏览器地址栏和底部导航）
+- ✅ 主屏幕图标（192×192 + 512×512）
+- ✅ 离线缓存（静态资源缓存在本地，无网络也能打开界面）
+- ✅ 自动更新（Service Worker 自动检测新版本）
+
+### 方案二：原生 APK / IPA
+
+将 PicViewer 编译为真正的 Android `.apk` 或 iOS `.ipa` 安装包。
+
+**环境准备：**
+
+| 平台 | 必需工具 |
+|------|----------|
+| Android | [Android Studio](https://developer.android.com/studio) + Android SDK |
+| iOS | macOS + [Xcode](https://developer.apple.com/xcode/) + Apple Developer 账号 |
+
+**编译步骤：**
+
+```bash
+cd client
+
+# 1. 安装依赖
+npm install
+
+# 2. 构建 Web 前端
+npm run build
+
+# === Android ===
+npm run capacitor:add:android       # 初始化 Android 项目（仅首次）
+npm run capacitor:build:android     # 构建 APK（在 Android Studio 中完成）
+
+# === iOS（仅 macOS）===
+npm run capacitor:add:ios           # 初始化 iOS 项目（仅首次）
+npm run capacitor:build:ios         # 构建 IPA（在 Xcode 中完成）
+```
+
+**Capacitor npm scripts：**
+
+| 命令 | 说明 |
+|------|------|
+| `npm run capacitor:add:android` | 创建 Android 原生项目 |
+| `npm run capacitor:add:ios` | 创建 iOS 原生项目 |
+| `npm run capacitor:sync` | 同步 Web 代码到原生项目 |
+| `npm run capacitor:build:android` | 构建 + 同步 + 打开 Android Studio |
+| `npm run capacitor:build:ios` | 构建 + 同步 + 打开 Xcode |
+| `npm run generate-icons` | 重新生成 PWA 图标（需 sharp） |
+
+**配置文件：**
+- `client/capacitor.config.json` — Capacitor 项目配置（App ID、启动图等）
+- `client/public/manifest.json` — PWA 清单（应用名、图标、全屏模式）
+- `client/public/sw.js` — Service Worker（离线缓存策略）
 
 ## 🛠️ 技术栈
 
@@ -142,19 +224,24 @@ PicViewer/
 └── client/
     ├── package.json
     ├── vite.config.js
+    ├── capacitor.config.json    # Capacitor 原生打包配置
+    ├── scripts/
+    │   └── generate-icons.cjs   # PWA 图标生成脚本
     ├── public/
-    │   ├── favicon.svg
-    │   └── icons/             # QingIcon SVG 图标
+    │   ├── manifest.json        # PWA 应用清单
+    │   ├── sw.js                # Service Worker 离线缓存
+    │   └── icons/               # QingIcon SVG + PWA 图标
     └── src/
         ├── App.jsx / App.css
         ├── index.css
+        ├── main.jsx             # SW 注册入口
         ├── hooks/useApi.js
         └── components/
-            ├── FolderTree     # 侧边栏文件夹导航 + 拖拽排序
-            ├── ImageGrid      # 缩略图网格 + 懒加载
-            ├── Lightbox       # 全屏灯箱 + 预加载 + 旋转
-            ├── SearchBar      # 搜索框
-            └── IgnoredFolders # 忽略文件夹面板
+            ├── FolderTree       # 侧边栏文件夹导航 + 拖拽排序
+            ├── ImageGrid        # 缩略图网格 + 懒加载
+            ├── Lightbox         # 全屏灯箱 + 预加载 + 旋转
+            ├── SearchBar        # 搜索框
+            └── IgnoredFolders   # 忽略文件夹面板
 ```
 
 ## 🔧 API 接口

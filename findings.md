@@ -48,6 +48,15 @@
 ### 安全加固
 - `isPathAllowed()` 必须检查 `normalized === rootNorm || normalized.startsWith(rootNorm + path.sep)`
 - 服务端 `explorer /select,` 而非浏览器 `file://` 协议
+
+### 移动客户端
+- **PWA**: 首选方案，零配置即可安装到手机主屏幕。manifest.json + Service Worker 实现离线缓存
+- **Capacitor**: 用于编译原生 APK/IPA。需要 Android Studio（Android）或 Xcode + macOS（iOS）
+- **图标**: 使用 sharp 从 SVG 源文件生成 192px 和 512px PNG，支持 `npm run generate-icons` 重新生成
+- **触摸优化**: Apple HIG 44px 最小触摸目标，全局应用 `min-height: 44px`
+- **响应式断点**: 1024px（平板）、768px（手机）、480px（小屏手机）
+- **移动端 Topbar**: 面包屑换行独占一行，控件行在上，避免挤压
+- **Vite host**: 配置 `host: '0.0.0.0'` 允许局域网内其他设备连接
 - 批量下载 POST 替代 GET 避免 URL 长度限制
 - 端口重试上限 100 次防止无限递归
 - 网格: CSS Grid `repeat(auto-fill, minmax(180px, 1fr))` — 整齐卡片
