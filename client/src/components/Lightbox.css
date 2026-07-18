@@ -372,73 +372,73 @@
 /* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .lightbox-topbar {
-    padding: 6px 10px;
+    padding: 8px 12px;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
   }
 
   .lightbox-info {
     flex: 1;
     min-width: 0;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .lightbox-type img {
+    width: 24px;
+    height: 24px;
   }
 
   .lightbox-filename {
-    font-size: 14px;
+    font-size: 15px;
     max-width: none;
     flex: 1;
     min-width: 0;
   }
 
-  .lightbox-type img {
-    width: 20px;
-    height: 20px;
-  }
-
   .lightbox-counter {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .lightbox-zoom-label {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .lightbox-actions {
-    gap: 6px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
   .lb-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    border-radius: 10px;
   }
 
   .lb-btn img {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 
   .lb-speed-select {
-    height: 40px;
-    font-size: 13px;
-    padding: 4px 6px;
+    height: 44px;
+    font-size: 14px;
+    padding: 4px 8px;
   }
 
   .lightbox-nav {
-    width: 44px;
-    height: 64px;
-    border-radius: 8px;
+    width: 48px;
+    height: 72px;
+    border-radius: 10px;
   }
 
   .lightbox-nav img {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
   }
 
-  .lightbox-prev { left: 6px; }
-  .lightbox-next { right: 6px; }
+  .lightbox-prev { left: 8px; }
+  .lightbox-next { right: 8px; }
 
   .lightbox-video {
     max-width: 98vw;
@@ -451,90 +451,105 @@
   }
 
   .lightbox-thumbs {
-    padding: 8px 10px;
-    gap: 4px;
+    padding: 10px 12px;
+    gap: 6px;
     justify-content: flex-start;
   }
 
   .lightbox-thumb {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
+    border-radius: 6px;
   }
 
   .lightbox-hints {
-    gap: 10px;
-    font-size: 11px;
+    gap: 12px;
+    font-size: 12px;
     flex-wrap: wrap;
-    padding: 8px 10px;
+    padding: 10px 12px;
   }
 
   .lightbox-info-panel {
-    top: 50px;
-    left: 6px;
-    right: 6px;
+    top: 52px;
+    left: 8px;
+    right: 8px;
     width: auto;
     max-width: none;
-    bottom: 60px;
+    bottom: 64px;
     max-height: 60vh;
-    padding: 16px;
+    padding: 18px;
   }
 
   .lightbox-info-panel h4 {
-    font-size: 15px;
-    margin-bottom: 12px;
+    font-size: 16px;
+    margin-bottom: 14px;
   }
 
   .info-grid {
-    grid-template-columns: 70px 1fr;
-    gap: 8px 10px;
-    font-size: 13px;
+    grid-template-columns: 75px 1fr;
+    gap: 10px 12px;
+    font-size: 14px;
   }
 }
 
 /* ===== 小屏手机 ===== */
 @media (max-width: 480px) {
   .lightbox-topbar {
-    padding: 4px 8px;
-    gap: 4px;
+    padding: 5px 8px;
+    gap: 5px;
   }
 
   .lightbox-filename {
-    font-size: 13px;
+    font-size: 14px;
   }
 
-  .lb-btn {
-    width: 36px;
-    height: 36px;
-  }
-
-  .lb-btn img {
-    width: 18px;
-    height: 18px;
-  }
-
-  .lb-speed-select {
-    height: 36px;
-    font-size: 12px;
-  }
-
-  .lightbox-nav {
-    width: 40px;
-    height: 56px;
-  }
-
-  .lightbox-nav img {
+  .lightbox-type img {
     width: 22px;
     height: 22px;
   }
 
+  .lb-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lb-btn img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .lb-speed-select {
+    height: 40px;
+    font-size: 13px;
+  }
+
+  .lightbox-nav {
+    width: 44px;
+    height: 64px;
+  }
+
+  .lightbox-nav img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .lightbox-prev { left: 4px; }
+  .lightbox-next { right: 4px; }
+
   .lightbox-thumb {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
   }
 
   .lightbox-hints {
-    gap: 6px;
-    font-size: 10px;
-    padding: 6px 8px;
+    gap: 8px;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .lightbox-info-panel {
+    top: 44px;
+    bottom: 56px;
+    padding: 14px;
   }
 }

@@ -106,19 +106,28 @@ body {
 /* Mobile responsive — 全局 */
 @media (max-width: 768px) {
   :root {
-    --sidebar-width: 260px;
-    --topbar-height: 44px;
+    --sidebar-width: 280px;
+    --topbar-height: 48px;
   }
 
-  /* 移动端增大基础字号和触控目标 */
+  /* 移动端增大基础字号 */
   body {
-    font-size: 15px;
+    font-size: 16px;
   }
 
+  /* Apple HIG 标准：最小触摸目标 44px */
   button,
   select,
-  input[type="range"]::-webkit-slider-thumb {
-    min-height: 36px;
+  input[type="range"]::-webkit-slider-thumb,
+  .crumb-link,
+  .ft-item,
+  .search-clear {
+    min-height: 44px;
+  }
+
+  input[type="text"],
+  input[type="search"] {
+    min-height: 44px;
   }
 
   /* 移动端滚动条更窄 */
@@ -139,6 +148,6 @@ body {
   }
 
   body {
-    font-size: 14px;
+    font-size: 15px;
   }
 }

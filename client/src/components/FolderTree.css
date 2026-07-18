@@ -329,8 +329,104 @@
 /* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .folder-tree {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .ft-section-header {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .ft-item {
+    padding: 12px 14px;
+    font-size: 15px;
+    gap: 10px;
+    min-height: 44px;
+  }
+
+  .ft-item .ft-icon {
+    font-size: 20px;
+  }
+
+  .ft-item .ft-icon img {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* 移除按钮始终可见 */
+  .ft-remove-btn {
+    font-size: 15px;
     padding: 6px 8px;
-    gap: 8px;
+    opacity: 0.5;
+  }
+
+  .ft-drag-handle {
+    font-size: 14px;
+    opacity: 0.4;
+  }
+
+  .ft-add-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+
+  .ft-add-form input {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+
+  .ft-add-form button {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+
+  .ft-back {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .ft-empty {
+    font-size: 14px;
+    padding: 16px;
+  }
+
+  /* Favorites */
+  .fav-item .ft-item-name {
+    font-size: 14px;
+  }
+
+  /* Ignored */
+  .ignored-name {
+    font-size: 14px;
+  }
+
+  .ignored-path {
+    font-size: 12px;
+  }
+
+  .ignored-empty-hint {
+    font-size: 13px;
+  }
+
+  .ignored-item {
+    padding: 10px 14px !important;
+  }
+
+  /* Badge */
+  .ft-section-header .ft-badge {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ft-item {
+    padding: 10px 12px;
+    font-size: 14px;
   }
 
   .ft-section-header {
@@ -338,76 +434,8 @@
     font-size: 12px;
   }
 
-  .ft-item {
-    padding: 10px 12px;
-    font-size: 14px;
-    gap: 8px;
-  }
-
-  .ft-item .ft-icon {
-    font-size: 17px;
-  }
-
-  .ft-remove-btn {
-    font-size: 13px;
-    padding: 4px 6px;
-    opacity: 0.6;
-  }
-
-  .ft-add-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 18px;
-  }
-
   .ft-add-form input {
     font-size: 14px;
     padding: 8px 10px;
-  }
-
-  .ft-add-form button {
-    font-size: 13px;
-    padding: 8px 14px;
-  }
-
-  .ft-back {
-    font-size: 13px;
-    padding: 8px 12px;
-  }
-
-  .ft-empty {
-    font-size: 13px;
-    padding: 14px 16px;
-  }
-
-  /* Favorites */
-  .fav-item .ft-item-name {
-    font-size: 13px;
-  }
-
-  /* Ignored */
-  .ignored-name {
-    font-size: 13px;
-  }
-
-  .ignored-path {
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 480px) {
-  .ft-item {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-
-  .ft-section-header {
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-
-  .ft-add-form input {
-    font-size: 13px;
-    padding: 6px 8px;
   }
 }
