@@ -10,8 +10,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.01em;
 }
 
 /* === Grid mode (default) === */
@@ -59,9 +58,9 @@
   padding: 8px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
   content-visibility: auto;
   contain-intrinsic-size: 76px;
 }
@@ -69,6 +68,10 @@
 .media-list-item:hover {
   background: var(--bg-hover);
   border-color: var(--accent);
+}
+
+.media-list-item:active {
+  transform: scale(0.99);
 }
 
 .media-list-thumb {
@@ -157,7 +160,11 @@
 .image-card:hover {
   transform: translateY(-2px);
   border-color: var(--accent);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(var(--accent-rgb), 0.25);
+}
+
+.image-card:active {
+  transform: scale(0.98);
 }
 
 .image-check {
@@ -275,19 +282,24 @@
 .folder-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 18px 14px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 
 .folder-card:hover {
   background: var(--bg-hover);
   border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.folder-card:active {
+  transform: scale(0.97);
 }
 
 .folder-icon {

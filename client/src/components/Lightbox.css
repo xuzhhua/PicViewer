@@ -1,11 +1,11 @@
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.95);
-  z-index: 1000;
+  background: rgba(0, 0, 0, 0.96);
+  z-index: var(--z-lightbox, 200);
   display: flex;
   flex-direction: column;
-  animation: fadeIn 0.15s ease;
+  animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
@@ -57,22 +57,28 @@
 }
 
 .lb-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s, border-color 0.15s;
 }
 
 .lb-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.lb-btn:active {
+  transform: scale(0.93);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .lb-btn.active {
@@ -80,15 +86,25 @@
   border-color: var(--accent);
 }
 
+.lb-btn.active:hover {
+  background: var(--accent-hover);
+}
+
 .lb-speed-select {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 2px 4px;
   font-size: 12px;
   cursor: pointer;
   height: 36px;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s;
+}
+
+.lb-speed-select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Content area */
@@ -189,8 +205,8 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: white;
   width: 48px;
   height: 72px;
@@ -198,9 +214,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s;
   z-index: 10;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .lightbox-nav img {
@@ -209,7 +225,17 @@
 }
 
 .lightbox-nav:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.lightbox-nav:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.lightbox-nav img {
+  opacity: 0.7;
+  transition: opacity 0.15s;
 }
 
 .lightbox-nav:hover img {
