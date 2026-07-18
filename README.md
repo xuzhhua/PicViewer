@@ -122,6 +122,7 @@ npm run capacitor:build:ios         # 构建 IPA（在 Xcode 中完成）
 |------|------|
 | 后端 | Node.js + Express |
 | 缩略图 | [sharp](https://sharp.pixelplumbing.com/) |
+| DICOM | [dicom-parser](https://github.com/cornerstonejs/dicomParser)（.dcm 医学影像解析与转换） |
 | 视频处理 | [ffmpeg](https://ffmpeg.org/)（转码 + 缩略图） |
 | ZIP 打包 | [archiver](https://www.archiverjs.com/) |
 | 前端 | React 18 + Vite |
@@ -273,7 +274,9 @@ PicViewer/
 ## 📄 支持的文件格式
 
 ### 图片
-`.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.svg` `.tiff` `.tif` `.ico` `.avif` `.heic` `.heif`
+`.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp` `.svg` `.tiff` `.tif` `.ico` `.avif` `.heic` `.heif` `.dcm`
+
+> `.dcm` (DICOM) 医学影像格式：服务端自动解析像素数据并转换为 JPEG 显示。支持 MONOCHROME1/2、RGB、YBR_FULL 等 photometric interpretation，自动窗宽窗位调整。
 
 ### 视频
 `.mp4` `.webm` `.mov` `.mkv` `.avi` `.wmv` `.flv` `.m4v` `.mts` `.m2ts`

@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const sharp = require('sharp');
 const { readData } = require('../data/store');
+const dicom = require('./dicom');
 
 const CACHE_DIR = path.join(__dirname, '..', 'cache', 'thumbnails');
 const TRANSCODE_CACHE_DIR = path.join(__dirname, '..', 'cache', 'transcodes');
@@ -22,6 +23,9 @@ const BROWSER_NATIVE_VIDEO = new Set(['.mp4', '.webm', '.m4v']);
 
 // All supported video extensions
 const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.m4v', '.mts', '.m2ts'];
+
+// DICOM extension
+const DICOM_EXTENSION = '.dcm';
 
 // Check if path is within configured root folders
 function isPathAllowed(targetPath) {
@@ -174,6 +178,28 @@ function checkFfmpeg() {
   });
 }
 
+// Serve DICOM file converted to JPEG for browser display
+async function serveDicomPreview(filePath, res) {
+  try {
+    const jpegBuffer = await dicom.generateDicomPreview(filePath);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', jpegBuffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.end(jpegBuffer);
+  } catch (err) {
+    console.error(`[DICOM] Preview generation failed: ${err.message}`);
+    // Serve placeholder on error
+    const size = 512;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <rect width="${size}" height="${size}" fill="#1a1a2e"/>
+      <text x="${size*0.5}" y="${size*0.45}" text-anchor="middle" fill="#999" font-size="18" font-family="Arial, sans-serif">DICOM</text>
+      <text x="${size*0.5}" y="${size*0.58}" text-anchor="middle" fill="#777" font-size="12" font-family="Arial, sans-serif">Unsupported format</text>
+    </svg>`;
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.end(svg);
+  }
+}
+
 // Core file serving (used directly for native formats and cached transcodes)
 async function serveFileDirect(filePath, res) {
   await fs.access(filePath, fs.constants.R_OK);
@@ -224,7 +250,7 @@ async function serveFileDirect(filePath, res) {
   stream.pipe(res);
 }
 
-// Serve file — routes videos through transcoder if needed
+// Serve file — routes videos through transcoder if needed, DICOM through converter
 async function serveFile(filePath, res) {
   if (!isPathAllowed(filePath)) {
     throw Object.assign(new Error('Path not allowed'), { status: 403 });
@@ -235,6 +261,11 @@ async function serveFile(filePath, res) {
 
   if (isVideo && !BROWSER_NATIVE_VIDEO.has(ext)) {
     return transcodeVideo(filePath, res);
+  }
+
+  // DICOM: convert to JPEG for browser display
+  if (ext === DICOM_EXTENSION) {
+    return serveDicomPreview(filePath, res);
   }
 
   return serveFileDirect(filePath, res);
@@ -349,6 +380,11 @@ async function serveThumbnail(filePath, size, fit, res) {
     return serveVideoThumbnail(filePath, size, cacheKey, res);
   }
 
+  // DICOM thumbnail — convert via dicom service
+  if (ext === DICOM_EXTENSION) {
+    return serveDicomThumbnail(filePath, size, fit, res);
+  }
+
   const cacheKey = getCacheKey(filePath, size, fit);
 
   // Check cache first
@@ -400,6 +436,35 @@ async function serveThumbnail(filePath, size, fit, res) {
     try {
       await fs.writeFile(cacheKey + '.broken', '');
     } catch (_) { /* non-critical */ }
+    serveBrokenImagePlaceholder(size, res);
+  }
+}
+
+// Generate DICOM thumbnail with caching
+async function serveDicomThumbnail(filePath, size, fit, res) {
+  const cacheKey = getCacheKey(filePath, size, fit);
+
+  // Check cache
+  try {
+    const cacheStat = await fs.stat(cacheKey);
+    const fileStat = await fs.stat(filePath);
+    if (cacheStat.mtime > fileStat.mtime) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const stream = require('fs').createReadStream(cacheKey);
+      return stream.pipe(res);
+    }
+  } catch (e) { /* cache miss */ }
+
+  try {
+    const buffer = await dicom.generateDicomThumbnail(filePath, size, fit);
+    await fs.writeFile(cacheKey, buffer);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.end(buffer);
+  } catch (err) {
+    console.error(`[DICOM] Thumbnail failed: ${err.message}`);
     serveBrokenImagePlaceholder(size, res);
   }
 }

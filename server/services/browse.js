@@ -7,7 +7,8 @@ const { readData, readIgnored } = require('../data/store');
 
 const IMAGE_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp',
-  '.svg', '.tiff', '.tif', '.ico', '.avif', '.heic', '.heif'
+  '.svg', '.tiff', '.tif', '.ico', '.avif', '.heic', '.heif',
+  '.dcm'
 ]);
 
 const VIDEO_EXTENSIONS = new Set([
@@ -17,6 +18,29 @@ const VIDEO_EXTENSIONS = new Set([
 // --- Shared media metadata helpers ---
 
 async function enrichImageInfo(imgInfo, fullPath) {
+  const ext = path.extname(fullPath).toLowerCase();
+
+  // DICOM: use dicom parser for metadata
+  if (ext === '.dcm') {
+    try {
+      const dicom = require('./dicom');
+      const meta = await dicom.getDicomMetadata(fullPath);
+      if (meta) {
+        imgInfo.width = meta.width || 0;
+        imgInfo.height = meta.height || 0;
+        imgInfo.format = 'dcm';
+        imgInfo.dicom = {
+          bitsStored: meta.bitsStored,
+          photometricInterpretation: meta.photometricInterpretation,
+          modality: meta.modality,
+          patientName: meta.patientName,
+          studyDate: meta.studyDate
+        };
+      }
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
   try {
     const meta = await sharp(fullPath).metadata();
     imgInfo.width = meta.width || 0;

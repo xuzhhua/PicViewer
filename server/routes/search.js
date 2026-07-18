@@ -6,7 +6,8 @@ const { readData, readIgnored } = require('../data/store');
 
 const IMAGE_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp',
-  '.svg', '.tiff', '.tif', '.ico', '.avif', '.heic', '.heif'
+  '.svg', '.tiff', '.tif', '.ico', '.avif', '.heic', '.heif',
+  '.dcm'
 ]);
 const VIDEO_EXTENSIONS = new Set([
   '.mp4', '.webm', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.m4v', '.mts', '.m2ts'
