@@ -116,11 +116,69 @@ npm run capacitor:build:ios         # 构建 IPA（在 Xcode 中完成）
 - `client/public/manifest.json` — PWA 清单（应用名、图标、全屏模式）
 - `client/public/sw.js` — Service Worker（离线缓存策略）
 
+## 🪟 Windows 桌面客户端（Electron）
+
+将 PicViewer 编译为独立的 Windows `.exe` 桌面程序，无需浏览器。
+
+### 快速启动
+
+```bash
+npm run setup          # 安装所有依赖（含 Electron）
+npm run build          # 构建前端
+npm run electron:dev   # 启动桌面客户端
+```
+
+### 桌面版特性
+
+| 特性 | 说明 |
+|------|------|
+| **原生窗口** | 独立窗口、最小化到系统托盘、窗口大小/位置记忆 |
+| **系统托盘** | 右键菜单：显示窗口 / 打开浏览器 / 退出 |
+| **关闭到托盘** | 点击 ✕ 最小化到托盘而非退出 |
+| **Electron 外壳** | 内嵌 Chromium，和浏览器版功能完全一致 |
+
+### 编译为安装包
+
+```bash
+npm run electron:dist:win    # Windows → dist-electron/PicViewer Setup x.x.x.exe
+npm run electron:dist:mac    # macOS   → dist-electron/PicViewer-x.x.x.dmg
+npm run electron:dist:linux  # Linux   → dist-electron/PicViewer-x.x.x.AppImage
+```
+
+> 打包需在目标平台执行（Windows 上打 Windows 包，macOS 上打 macOS 包）。
+
+### 架构
+
+```
+┌─ Electron Main Process ────────────────┐
+│  electron-main.js                       │
+│  ├─ 启动 Express 服务 (复用 server/)     │
+│  ├─ 创建 BrowserWindow                  │
+│  ├─ 系统托盘 + 关闭到托盘               │
+│  └─ 窗口状态持久化                       │
+├─ Express Server (server/index.js) ──────┤
+│  图片/视频/搜索/DICOM API                │
+├─ BrowserWindow ─────────────────────────┤
+│  加载 http://localhost:{port}           │
+│  React 前端 (client/dist/)              │
+└─────────────────────────────────────────┘
+```
+
+### 文件结构（新增）
+
+```
+PicViewer/
+├── electron-main.js        # Electron 主进程入口
+├── package.json            # 含 electron 脚本 + electron-builder 打包配置
+└── dist-electron/          # 打包输出目录（gitignore）
+```
+
 ## 🛠️ 技术栈
 
 | 层级 | 技术 |
 |------|------|
 | 后端 | Node.js + Express |
+| 桌面客户端 | [Electron](https://www.electronjs.org/)（Windows/macOS/Linux） |
 | 缩略图 | [sharp](https://sharp.pixelplumbing.com/) |
 | DICOM | [dicom-parser](https://github.com/cornerstonejs/dicomParser)（.dcm 医学影像解析与转换） |
 | 视频处理 | [ffmpeg](https://ffmpeg.org/)（转码 + 缩略图） |
@@ -203,8 +261,9 @@ npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 PicViewer/
 ├── start.bat
 ├── package.json
+├── electron-main.js          # Electron 桌面客户端主进程
 ├── server/
-│   ├── index.js               # Express 入口
+│   ├── index.js               # Express 入口（支持 import 和 standalone）
 │   ├── config.json            # 端口配置
 │   ├── routes/
 │   │   ├── folders.js         # 文件夹 CRUD + 系统选择器

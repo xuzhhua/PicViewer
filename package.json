@@ -2,13 +2,66 @@
   "name": "picviewer",
   "version": "1.0.0",
   "description": "Web-based local image browser with network drive support",
+  "main": "electron-main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "node --watch server/index.js",
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "start": "node server/index.js",
-    "setup": "npm install && cd client && npm install"
+    "setup": "npm install && cd client && npm install",
+    "electron": "electron .",
+    "electron:dev": "npm run build && electron .",
+    "electron:dist": "npm run build && electron-builder",
+    "electron:dist:win": "npm run build && electron-builder --win",
+    "electron:dist:mac": "npm run build && electron-builder --mac",
+    "electron:dist:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.picviewer.app",
+    "productName": "PicViewer",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron-main.js",
+      "server/**/*",
+      "client/dist/**/*",
+      "client/public/icons/icon-*.png",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server/config.json",
+        "to": "server/config.json"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "client/public/icons/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PicViewer"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "client/public/icons/icon-512.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "client/public/icons/icon-512.png"
+    }
   },
   "dependencies": {
     "archiver": "^8.0.0",
@@ -18,6 +71,8 @@
     "sharp": "^0.33.0"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
   }
 }

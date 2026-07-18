@@ -25,7 +25,6 @@ function getPort() {
   } catch (e) { /* ignore config parse error */ }
   return 3456;
 }
-const PORT = getPort();
 
 // Middleware
 app.use(cors());
@@ -57,31 +56,48 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
-function startServer(port, attempts = 0) {
+/**
+ * Start the HTTP server. Returns the http.Server instance.
+ * @param {number} [port] - Port to listen on (default: from config or 3456)
+ * @returns {Promise<{ server: http.Server, port: number }>}
+ */
+function startServer(port) {
+  const targetPort = port || getPort();
   const MAX_RETRIES = 100;
-  if (attempts >= MAX_RETRIES) {
-    console.error(`Failed to find an available port after ${MAX_RETRIES} attempts`);
-    process.exit(1);
-  }
 
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`PicViewer running at http://localhost:${port}`);
-    console.log(`LAN access:  http://${getLocalIP()}:${port}`);
-    console.log(`Folders:     ${path.join(__dirname, 'data', 'folders.json')}`);
-  });
+  return new Promise((resolve, reject) => {
+    function tryPort(p, attempts) {
+      if (attempts >= MAX_RETRIES) {
+        return reject(new Error(`Failed to find an available port after ${MAX_RETRIES} attempts`));
+      }
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is in use, trying ${port + 1}...`);
-      startServer(port + 1, attempts + 1);
-    } else {
-      console.error('Server error:', err.message);
-      process.exit(1);
+      const server = app.listen(p, '0.0.0.0', () => {
+        console.log(`PicViewer running at http://localhost:${p}`);
+        console.log(`LAN access:  http://${getLocalIP()}:${p}`);
+        resolve({ server, port: p });
+      });
+
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.log(`Port ${p} is in use, trying ${p + 1}...`);
+          tryPort(p + 1, attempts + 1);
+        } else {
+          reject(err);
+        }
+      });
     }
+
+    tryPort(targetPort, 0);
   });
 }
 
-startServer(PORT);
+// Run standalone if called directly (not imported by Electron)
+if (require.main === module) {
+  startServer().catch((err) => {
+    console.error('Server error:', err.message);
+    process.exit(1);
+  });
+}
 
 function getLocalIP() {
   const { networkInterfaces } = require('os');
@@ -95,3 +111,5 @@ function getLocalIP() {
   }
   return '0.0.0.0';
 }
+
+module.exports = { app, startServer, getPort };
