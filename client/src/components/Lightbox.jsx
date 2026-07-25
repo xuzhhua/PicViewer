@@ -18,8 +18,16 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [rotation, setRotation] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  const [slideDir, setSlideDir] = useState(0); // -1=prev, 1=next
+  const [uiVisible, setUiVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const slideshowRef = useRef(null);
   const preloadCache = useRef(new Set());
+  const thumbsRef = useRef(null);
+  const videoRef = useRef(null);
+  const uiTimerRef = useRef(null);
+  const contentRef = useRef(null);
 
   // Refs to keep latest values for synchronous access in event handlers
   const zoomRef = useRef(1);
@@ -27,6 +35,25 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current.x = panX; }, [panX]);
   useEffect(() => { panRef.current.y = panY; }, [panY]);
+
+  // Auto-hide UI after 3s of inactivity
+  const resetUiTimer = useCallback(() => {
+    setUiVisible(true);
+    if (uiTimerRef.current) clearTimeout(uiTimerRef.current);
+    uiTimerRef.current = setTimeout(() => setUiVisible(false), 3000);
+  }, []);
+  useEffect(() => {
+    resetUiTimer();
+    return () => { if (uiTimerRef.current) clearTimeout(uiTimerRef.current); };
+  }, [currentIndex]); // eslint-disable-line
+
+  // Thumbnail strip auto-scroll
+  useEffect(() => {
+    if (thumbsRef.current) {
+      const active = thumbsRef.current.querySelector('.lightbox-thumb.active');
+      if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentIndex]);
 
   // Touch/pinch tracking
   const touchRef = useRef({
@@ -51,19 +78,81 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     if (isVideo) setVideoLoading(true);
   }, [item?.path, isVideo]);
 
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+  useEffect(() => {
+    setImageError(false);
+    setSlideDir(0);
+  }, [item?.path]);
+
   const resetView = useCallback(() => {
     setZoom(1); setPanX(0); setPanY(0); setRotation(0);
     zoomRef.current = 1; panRef.current = { x: 0, y: 0 };
   }, []);
   const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
+  // Double-click toggle 1x ↔ 2x
+  const handleDoubleClick = useCallback((e) => {
+    if (isVideo) return;
+    e.stopPropagation();
+    if (zoomRef.current > 1) {
+      resetView();
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width / 2;
+      const cy = e.clientY - rect.top - rect.height / 2;
+      setZoom(2); setPanX(-cx); setPanY(-cy);
+      zoomRef.current = 2;
+      panRef.current = { x: -cx, y: -cy };
+    }
+  }, [isVideo, resetView]);
+
+  // Download current media
+  const handleDownload = useCallback(() => {
+    if (isVideo) {
+      const a = document.createElement('a');
+      a.href = getImageUrl(item.path);
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // For images, use fetch to force download
+      fetch(getImageUrl(item.path))
+        .then(r => r.blob())
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = item.name;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }).catch(() => {});
+    }
+  }, [item, getImageUrl, isVideo]);
+
+  // Browser fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, []);
+
   const goNext = useCallback(() => {
     setLoaded(false); setVideoLoading(true); resetView();
+    setSlideDir(1); setTimeout(() => setSlideDir(0), 300);
     onNavigate((currentIndex + 1) % images.length);
   }, [currentIndex, images.length, onNavigate, resetView]);
 
   const goPrev = useCallback(() => {
     setLoaded(false); setVideoLoading(true); resetView();
+    setSlideDir(-1); setTimeout(() => setSlideDir(0), 300);
     onNavigate((currentIndex - 1 + images.length) % images.length);
   }, [currentIndex, images.length, onNavigate, resetView]);
 
@@ -98,10 +187,24 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       switch (e.key) {
         case 'Escape': onClose(); break;
-        case 'ArrowLeft': goPrev(); break;
-        case 'ArrowRight': goNext(); break;
+        case 'f':
+          if (!e.ctrlKey && !e.metaKey) { toggleFullscreen(); }
+          break;
+        case 'ArrowLeft':
+          if (isVideo && videoRef.current) { videoRef.current.currentTime -= 5; }
+          else goPrev();
+          break;
+        case 'ArrowRight':
+          if (isVideo && videoRef.current) { videoRef.current.currentTime += 5; }
+          else goNext();
+          break;
         case ' ':
-          if (!isVideo) { e.preventDefault(); setSlideshow(s => !s); }
+          if (isVideo && videoRef.current) {
+            e.preventDefault();
+            videoRef.current.paused ? videoRef.current.play() : videoRef.current.pause();
+          } else if (!isVideo) {
+            e.preventDefault(); setSlideshow(s => !s);
+          }
           break;
         case '+': case '=':
           if (!isVideo) setZoom(z => clampZoom(z + 0.5));
@@ -129,11 +232,13 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose, goNext, goPrev, isVideo, resetView]);
+  }, [onClose, goNext, goPrev, isVideo, resetView, toggleFullscreen]);
 
   // Mouse wheel zoom
   const handleWheel = useCallback((e) => {
     if (isVideo) return;
+    // Only zoom when scrolling over the image itself, not nav buttons or empty space
+    if (!e.target.closest('.lightbox-image-container')) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -162,7 +267,10 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     touchRef.current.moved = false;
 
     if (touches.length === 2) {
-      // Pinch start
+      // Pinch start — record center and distance
+      const cx = (touches[0].clientX + touches[1].clientX) / 2;
+      const cy = (touches[0].clientY + touches[1].clientY) / 2;
+      touchRef.current.pinchCenter = { x: cx, y: cy };
       const dx = touches[1].clientX - touches[0].clientX;
       const dy = touches[1].clientY - touches[0].clientY;
       touchRef.current.pinchDist = Math.hypot(dx, dy);
@@ -189,12 +297,26 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       const dx = touches[1].clientX - touches[0].clientX;
       const dy = touches[1].clientY - touches[0].clientY;
       const newDist = Math.hypot(dx, dy);
+      // New pinch center
+      const cx = (touches[0].clientX + touches[1].clientX) / 2;
+      const cy = (touches[0].clientY + touches[1].clientY) / 2;
       if (touchRef.current.pinchDist > 0) {
         const scale = newDist / touchRef.current.pinchDist;
         const newZoom = clampZoom(touchRef.current.pinchZoom * scale);
+        const ratio = newZoom / (zoomRef.current || 1);
+        // Adjust pan around pinch center
+        const rect = e.currentTarget.getBoundingClientRect();
+        const relX = cx - rect.left - rect.width / 2;
+        const relY = cy - rect.top - rect.height / 2;
+        const newPanX = panRef.current.x * ratio + relX * (1 - ratio);
+        const newPanY = panRef.current.y * ratio + relY * (1 - ratio);
         zoomRef.current = newZoom;
+        panRef.current = { x: newPanX, y: newPanY };
         setZoom(newZoom);
+        setPanX(newPanX);
+        setPanY(newPanY);
       }
+      touchRef.current.pinchCenter = { x: cx, y: cy };
     } else if (touches.length === 1 && touchRef.current.isPanning && zoomRef.current > 1) {
       const dx = touches[0].clientX - touchRef.current.startX;
       const dy = touches[0].clientY - touchRef.current.startY;
@@ -255,10 +377,23 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     };
   }, [dragging]);
 
+  // Attach wheel/touchmove with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [handleWheel, handleTouchMove]);
+
   return (
-    <div className="lightbox-overlay" onClick={onClose}>
+    <div className="lightbox-overlay" onClick={() => { if (zoomRef.current <= 1 && !isVideo) onClose(); }}
+      onMouseMove={resetUiTimer} onTouchStart={resetUiTimer}>
       {/* Top bar */}
-      <div className="lightbox-topbar" onClick={e => e.stopPropagation()}>
+      <div className={`lightbox-topbar${uiVisible ? '' : ' hidden'}`} onClick={e => e.stopPropagation()}>
         <div className="lightbox-info">
           <span className="lightbox-type">{isVideo ? <img src="/icons/video-camera.svg" alt="" width="16" height="16" className="lb-icon" /> : <img src="/icons/picture.svg" alt="" width="16" height="16" className="lb-icon" />}</span>
           <span className="lightbox-filename">{item.name}</span>
@@ -290,11 +425,17 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
           {!isVideo && (
             <button className="lb-btn" onClick={resetView} title="重置 (0)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
           )}
+          <button className="lb-btn" onClick={handleDownload} title="下载">
+            <img src="/icons/download.svg" alt="" width="16" height="16" />
+          </button>
           <button className="lb-btn" onClick={async () => {
             const fav = favorites?.find(f => f.path === item.path);
             fav ? onRemoveFavorite?.(fav.id) : onAddFavorite?.(item);
           }} title={favorites?.find(f => f.path === item.path) ? '取消收藏' : '添加收藏'}>
             <img src="/icons/star.svg" alt="" width="16" height="16" style={{opacity: favorites?.find(f => f.path === item.path) ? 1 : 0.3}} />
+          </button>
+          <button className="lb-btn" onClick={toggleFullscreen} title={isFullscreen ? '退出全屏 (F)' : '全屏 (F)'}>
+            <img src={isFullscreen ? '/icons/fullscreen-exit.svg' : '/icons/fullscreen.svg'} alt="" width="16" height="16" />
           </button>
           <button className={`lb-btn${showInfo ? ' active' : ''}`} onClick={() => setShowInfo(i => !i)} title="详细信息 (I)"><img src="/icons/info.svg" alt="" width="16" height="16" /></button>
           <button className="lb-btn" onClick={onClose} title="关闭 (Esc)"><img src="/icons/close.svg" alt="" width="16" height="16" /></button>
@@ -302,10 +443,8 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       </div>
 
       {/* Content */}
-      <div className="lightbox-content" onClick={e => e.stopPropagation()}
-        onWheel={handleWheel}
+      <div className="lightbox-content" ref={contentRef} onClick={e => e.stopPropagation()}
         onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {images.length > 1 && (
@@ -323,7 +462,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
                   <span className="lightbox-video-loading-text">正在处理视频...</span>
                 </div>
               )}
-              <video key={item.path}
+              <video key={item.path} ref={videoRef}
                 className={`lightbox-video ${!videoLoading ? 'loaded' : ''}`}
                 src={getImageUrl(item.path)} controls autoPlay playsInline
                 onLoadedData={() => { setLoaded(true); setVideoLoading(false); }}
@@ -331,21 +470,31 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
             </div>
           ) : (
             <div
-              className="lightbox-image-container"
+              className={`lightbox-image-container${slideDir === -1 ? ' slide-left' : slideDir === 1 ? ' slide-right' : ''}`}
               onMouseDown={handleMouseDown}
+              onDoubleClick={handleDoubleClick}
               style={{
                 cursor: zoom > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
                 transform: `translate(${panX}px, ${panY}px) scale(${zoom}) rotate(${rotation}deg)`,
                 transition: touchRef.current.isPinching ? 'none' : undefined
               }}
             >
-              {!loaded && <div className="lightbox-loading"><div className="spinner" /></div>}
-              <img
-                src={getImageUrl(item.path)} alt={item.name}
-                className={`lightbox-image ${loaded ? 'loaded' : ''}`}
-                onLoad={() => setLoaded(true)}
-                draggable={false}
-              />
+              {!loaded && !imageError && <div className="lightbox-loading"><div className="spinner" /></div>}
+              {imageError ? (
+                <div className="lightbox-error">
+                  <span className="lightbox-error-icon">⚠️</span>
+                  <span>图片加载失败</span>
+                  <button className="lb-btn" onClick={() => { setImageError(false); setLoaded(false); }} style={{marginTop:8}}>重试</button>
+                </div>
+              ) : (
+                <img
+                  src={getImageUrl(item.path)} alt={item.name}
+                  className={`lightbox-image ${loaded ? 'loaded' : ''}`}
+                  onLoad={() => setLoaded(true)}
+                  onError={() => { setImageError(true); setLoaded(true); }}
+                  draggable={false}
+                />
+              )}
             </div>
           )}
         </div>
@@ -358,23 +507,29 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       </div>
 
       {/* Thumbnails */}
-      <div className="lightbox-thumbs" onClick={e => e.stopPropagation()}>
+      <div className={`lightbox-thumbs${uiVisible ? '' : ' hidden'}`} ref={thumbsRef} onClick={e => e.stopPropagation()}>
         {images.map((img, i) => (
           <div key={img.path}
             className={`lightbox-thumb ${i === currentIndex ? 'active' : ''}`}
             onClick={() => { setLoaded(false); setVideoLoading(true); resetView(); onNavigate(i); }}>
             {img.type === 'video'
-              ? <div className="thumb-video-placeholder"><img src="/icons/play.svg" alt="" width="16" height="16" /></div>
+              ? <div className="thumb-video-wrap">
+                  <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />
+                  <span className="thumb-play-badge"><img src="/icons/play.svg" alt="" width="10" height="10" /></span>
+                </div>
               : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />}
           </div>
         ))}
       </div>
 
-      <div className="lightbox-hints">
+      <div className={`lightbox-hints${uiVisible ? '' : ' hidden'}`}>
         <span>← → Navigate</span>
         {!isVideo && <span>Scroll Zoom</span>}
-        {!isVideo && <span>Pinch Zoom</span>}
+        {!isVideo && <span>Double-click 1x/2x</span>}
         {!isVideo && <span>Drag Pan</span>}
+        {isVideo && <span>← → Seek ±5s</span>}
+        {isVideo && <span>Space Play/Pause</span>}
+        <span>F Fullscreen</span>
         <span>Esc Close</span>
         <span>ℹ Info</span>
       </div>

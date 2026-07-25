@@ -43,7 +43,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
 
   return (
     <div className="image-section">
-      <h3 className="section-title"><img src="/icons/picture.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部图片' : '图片'} ({images.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
+      <h3 className="section-title"><img src="/icons/picture.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '展平 · 图片' : '图片'} ({images.length})</h3>
       <div className={getGridClass()} style={gridStyle}>
         {images.map((img, index) => (
           <MediaCard
@@ -89,7 +89,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
 
   return (
     <div className="image-section">
-      <h3 className="section-title"><img src="/icons/video-camera.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '全部视频' : '视频'} ({videos.length}){viewMode === 'all' ? ' · 含子目录' : ''}</h3>
+      <h3 className="section-title"><img src="/icons/video-camera.svg" alt="" width="18" height="18" className="title-icon" /> {viewMode === 'all' ? '展平 · 视频' : '视频'} ({videos.length})</h3>
       <div className={getGridClass()} style={gridStyle}>
         {videos.map((vid, i) => (
           <MediaCard
@@ -118,16 +118,16 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
   let sharpSize, sharpFit;
   if (overrideSize) {
     const baseSize = overrideSize; // slider value = desired display size in px
-    if (viewMode === 'waterfall' || viewMode === 'all') { sharpSize = baseSize * 2; sharpFit = 'inside'; }
+    if (viewMode === 'waterfall' || viewMode === 'all') { sharpSize = baseSize * 3; sharpFit = 'inside'; }
     else if (viewMode === 'list') { sharpSize = baseSize; sharpFit = 'inside'; }
     else { sharpSize = baseSize * 2; sharpFit = 'cover'; }
   } else {
     const w = window.innerWidth;
     if (viewMode === 'list') { sharpSize = w < 768 ? 120 : 200; sharpFit = 'inside'; }
     else if (viewMode === 'waterfall' || viewMode === 'all') {
-      if (w < 769) { sharpSize = 600; sharpFit = 'inside'; }
-      else if (w < 1201) { sharpSize = 800; sharpFit = 'inside'; }
-      else { sharpSize = 1000; sharpFit = 'inside'; }
+      if (w < 769) { sharpSize = 800; sharpFit = 'inside'; }
+      else if (w < 1401) { sharpSize = 1200; sharpFit = 'inside'; }
+      else { sharpSize = 1600; sharpFit = 'inside'; }
     } else {
       if (w < 769) { sharpSize = 400; sharpFit = 'cover'; }
       else { sharpSize = 500; sharpFit = 'cover'; }

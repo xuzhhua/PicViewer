@@ -1,9 +1,8 @@
 // PicViewer Service Worker — PWA offline support
-const CACHE_NAME = 'picviewer-v1';
+const CACHE_NAME = 'picviewer-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -36,14 +35,18 @@ const STATIC_ASSETS = [
   '/icons/sun.svg',
 ];
 
-// Install: cache all static assets
+// Install: cache static assets individually (avoid all-or-nothing failure)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Some assets failed to cache:', err);
-      });
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (err) {
+          console.warn('[SW] Failed to cache:', asset, err.message);
+        }
+      }
     })
   );
   self.skipWaiting();
@@ -91,17 +94,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: cache-first with robust error handling
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
+        // Only cache successful same-origin responses (skip auth redirects)
+        if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, clone);
           });
         }
         return response;
+      }).catch((err) => {
+        console.warn('[SW] Fetch failed:', url.pathname, err.message);
+        return cached || new Response('', { status: 503 });
       });
       return cached || fetchPromise;
     })

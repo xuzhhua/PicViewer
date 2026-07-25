@@ -11,7 +11,7 @@ const VIEW_MODES = [
   { key: 'grid', icon: '/icons/grid.svg', label: '网格' },
   { key: 'waterfall', icon: '/icons/waterfall.svg', label: '瀑布' },
   { key: 'list', icon: '/icons/list.svg', label: '列表' },
-  { key: 'all', icon: '/icons/all.svg', label: '全部（含子目录）' },
+  { key: 'all', icon: '/icons/all.svg', label: '展平' },
 ];
 
 const SORT_OPTIONS = [
@@ -234,43 +234,6 @@ export default function App() {
   // Combine for lightbox: images first, then videos
   const allMedia = [...filteredImages, ...filteredVideos];
 
-  // Build breadcrumb paths
-  const buildBreadcrumbs = () => {
-    if (!currentPath) return [];
-    const sep = currentPath.includes('\\') ? '\\' : '/';
-    const parts = currentPath.split(sep).filter(Boolean);
-
-    // For UNC paths, prepend the server
-    if (currentPath.startsWith('\\\\')) {
-      const crumbs = [{ name: parts[0] ? `\\\\${parts[0]}` : '网络', path: `\\\\${parts[0]}` }];
-      let accumulated = `\\\\${parts[0]}`;
-      if (parts[1]) {
-        accumulated += `\\${parts[1]}`;
-        crumbs.push({ name: parts[1], path: accumulated });
-      }
-      for (let i = 2; i < parts.length; i++) {
-        accumulated += `\\${parts[i]}`;
-        crumbs.push({ name: parts[i], path: accumulated });
-      }
-      return crumbs;
-    }
-
-    // Regular path
-    const crumbs = [];
-    let accumulated = '';
-    for (const part of parts) {
-      accumulated += (accumulated ? sep : '') + part;
-      // For Windows drive letters, ensure colon
-      if (accumulated.length === 1 && /^[a-zA-Z]$/.test(accumulated)) {
-        accumulated += ':';
-      }
-      crumbs.push({ name: part, path: accumulated });
-    }
-    return crumbs;
-  };
-
-  const breadcrumbs = buildBreadcrumbs();
-
   return (
     <div className="app">
       {/* Mobile sidebar overlay */}
@@ -368,20 +331,6 @@ export default function App() {
               <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
             </>
           )}
-
-          <div className="breadcrumb" role="navigation" aria-label="文件路径导航">
-            <button className="crumb-link" onClick={handleBackToRoot} aria-label="返回根目录">
-              <img src="/icons/house.svg" alt="" width="16" height="16" className="crumb-icon" /> Root
-            </button>
-            {breadcrumbs.map((crumb, i) => (
-              <React.Fragment key={crumb.path}>
-                <span className="sep" aria-hidden="true">›</span>
-                <button className="crumb-link" onClick={() => handleBrowse(crumb.path)}>
-                  {crumb.name}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
         </div>
 
         {selectedPaths.size > 0 && (
