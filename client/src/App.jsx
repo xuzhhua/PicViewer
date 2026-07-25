@@ -57,7 +57,29 @@ export default function App() {
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
-  const [thumbSize, setThumbSize] = useState(() => parseInt(localStorage.getItem('picviewer-thumb-size')) || 300);
+  function getThumbSizes() {
+    const w = window.innerWidth;
+    if (w < 480) return [140, 220, 300];  // 3 levels: grid 4→2→1, waterfall 3→2→1
+    if (w < 768) return [150, 230, 340, 450, 600]; // 5 levels
+    return [150, 263, 375, 488, 600];               // 5 levels
+  }
+  const SIZES = getThumbSizes();
+  const MAX_LEVEL = SIZES.length - 1;
+  const storedLevel = parseInt(localStorage.getItem('picviewer-zoom-level'));
+  const initialLevel = isNaN(storedLevel) ? Math.min(2, MAX_LEVEL) : Math.min(MAX_LEVEL, Math.max(0, storedLevel));
+  const [zoomLevel, setZoomLevel] = useState(initialLevel);
+  const [thumbSize, setThumbSize] = useState(() => SIZES[initialLevel]);
+  const zoomLevelRef = React.useRef(initialLevel);
+  React.useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
+
+  // Recompute thumbSize on resize or level change
+  React.useEffect(() => {
+    const onResize = () => setThumbSize(getThumbSizes()[zoomLevelRef.current]);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const [zoomHint, setZoomHint] = useState('');
+  const zoomTimerRef = React.useRef(null);
   const [favorites, setFavorites] = useState([]);
   const isRecursive = viewMode === 'all';
 
@@ -101,15 +123,24 @@ export default function App() {
 
   // Desktop: Ctrl+scroll | Mobile: pinch gesture → resize thumbnails
   const pinchRef = React.useRef({ dist: 0, baseSize: 0 });
+  const showZoom = React.useCallback((level) => {
+    const dots = Array.from({length: MAX_LEVEL + 1}, (_, i) => i <= level ? '●' : '○').join(' ');
+    setZoomHint(dots);
+    if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+    zoomTimerRef.current = setTimeout(() => setZoomHint(''), 1200);
+  }, [MAX_LEVEL]);
+  const setLevel = React.useCallback((level) => {
+    const l = Math.min(MAX_LEVEL, Math.max(0, level));
+    setZoomLevel(l);
+    localStorage.setItem('picviewer-zoom-level', l);
+    setThumbSize(getThumbSizes()[l]);
+    showZoom(l);
+  }, [showZoom, MAX_LEVEL]);
   React.useEffect(() => {
     const onWheel = (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        setThumbSize(prev => {
-          const next = Math.min(500, Math.max(120, prev + (e.deltaY > 0 ? -20 : 20)));
-          localStorage.setItem('picviewer-thumb-size', next);
-          return next;
-        });
+        setLevel(zoomLevelRef.current + (e.deltaY > 0 ? -1 : 1));
       }
     };
     // Pinch gesture on content area
@@ -119,7 +150,7 @@ export default function App() {
           e.touches[1].clientX - e.touches[0].clientX,
           e.touches[1].clientY - e.touches[0].clientY
         );
-        pinchRef.current = { dist: d, baseSize: parseInt(localStorage.getItem('picviewer-thumb-size')) || 200 };
+        pinchRef.current = { dist: d, baseLevel: zoomLevelRef.current };
       }
     };
     const onTouchMove = (e) => {
@@ -130,11 +161,13 @@ export default function App() {
           e.touches[1].clientY - e.touches[0].clientY
         );
         const scale = d / pinchRef.current.dist;
-        setThumbSize(prev => {
-          const next = Math.min(500, Math.max(120, Math.round(pinchRef.current.baseSize * scale)));
-          localStorage.setItem('picviewer-thumb-size', next);
-          return next;
-        });
+        const offset = scale < 0.7 ? -1 : scale > 1.3 ? 1 : 0;
+        const nextLevel = pinchRef.current.baseLevel + offset;
+        if (nextLevel !== zoomLevelRef.current && nextLevel >= 0 && nextLevel <= 4) {
+          setLevel(nextLevel);
+          pinchRef.current.baseLevel = nextLevel;
+          pinchRef.current.dist = d;
+        }
       }
     };
     const onTouchEnd = () => { pinchRef.current.dist = 0; };
@@ -394,6 +427,7 @@ export default function App() {
         )}
 
         <div className="content">
+          {zoomHint && <div className="zoom-hint">{zoomHint}</div>}
           {error && <div className="error-msg">{error}</div>}
 
           {loading ? (

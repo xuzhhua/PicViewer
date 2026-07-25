@@ -22,7 +22,7 @@
 
 /* === Waterfall / Masonry mode === */
 .media-waterfall {
-  column-count: 4;
+  column-count: var(--cols, 4);
   column-gap: 12px;
 }
 
@@ -34,7 +34,8 @@
 .media-waterfall .image-card-thumb {
   aspect-ratio: auto !important;
   height: auto !important;
-  overflow: visible;
+  max-height: var(--img-max-h, none);
+  overflow: hidden;
 }
 
 .media-waterfall .image-card-thumb img {
@@ -323,7 +324,6 @@
   }
 
   .media-waterfall {
-    column-count: 2;
     column-gap: 10px;
   }
 
@@ -428,7 +428,6 @@
   }
 
   .media-waterfall {
-    column-count: 1;
   }
 
   .media-list-item {
@@ -502,12 +501,10 @@
 
 @media (min-width: 769px) and (max-width: 1200px) {
   .media-waterfall {
-    column-count: 3;
   }
 }
 
 @media (min-width: 1201px) {
   .media-waterfall {
-    column-count: 4;
   }
 }

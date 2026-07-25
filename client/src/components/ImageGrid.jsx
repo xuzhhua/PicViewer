@@ -21,16 +21,29 @@ function formatDate(dateStr) {
 export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
   const { getThumbnailUrl } = useApi();
 
-  // Thumbnail slider controls display size: grid column width or waterfall column count
   const gridStyle = {};
-  let effViewMode = viewMode;
+  const w = window.innerWidth;
   if (viewMode === 'grid') {
-    const colSize = Math.round(thumbSize * 0.72); // card fills ~72% of column
-    gridStyle.gridTemplateColumns = `repeat(auto-fill, minmax(${colSize}px, 1fr))`;
+    const colsArr = w < 480 ? [4, 2, 1]
+      : w < 768 ? (w - 292 >= 550 ? [6, 4, 3, 2] : [4, 3, 2])
+      : [10, 7, 5, 4, 3];
+    const step = w < 480 ? 80 : w < 768 ? 80 : 112;
+    const base = w < 480 ? 140 : w < 768 ? 150 : 150;
+    const idx = Math.min(colsArr.length - 1, Math.max(0, Math.round((thumbSize - base) / step)));
+    gridStyle.gridTemplateColumns = `repeat(${colsArr[idx]}, 1fr)`;
     gridStyle.gap = `${Math.round(thumbSize * 0.05)}px`;
   } else if (viewMode === 'waterfall' || viewMode === 'all') {
-    const cols = thumbSize > 380 ? 1 : thumbSize > 250 ? 2 : thumbSize > 160 ? 3 : 4;
-    gridStyle.columnCount = cols;
+    const cw = w - 292;
+    if (cw >= 700) {
+      gridStyle['--cols'] = [6, 4, 3, 2, 1][Math.round((thumbSize - 150) / 112)] || 1;
+    } else if (cw >= 350 || w < 480) {
+      gridStyle['--cols'] = w < 480 ? [3, 2, 1][Math.round((thumbSize - 140) / 80)] || 1
+                           : w < 768 ? (cw >= 550 ? [4, 3, 2, 1] : [4, 2, 1])[Math.round((thumbSize - 150) / 80)] || 1
+                           : [4, 3, 2, 2, 1][Math.round((thumbSize - 150) / 80)] || 1;
+    } else {
+      gridStyle['--cols'] = 1;
+      gridStyle['--img-max-h'] = `${Math.round(thumbSize * 1.6)}px`;
+    }
   }
 
   const getGridClass = () => {
@@ -70,13 +83,28 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
   const { getThumbnailUrl } = useApi();
 
   const gridStyle = {};
+  const w = window.innerWidth;
   if (viewMode === 'grid') {
-    const colSize = Math.round(thumbSize * 0.72);
-    gridStyle.gridTemplateColumns = `repeat(auto-fill, minmax(${colSize}px, 1fr))`;
+    const colsArr = w < 480 ? [4, 2, 1]
+      : w < 768 ? (w - 292 >= 550 ? [6, 4, 3, 2] : [4, 3, 2])
+      : [10, 7, 5, 4, 3];
+    const step = w < 480 ? 80 : w < 768 ? 80 : 112;
+    const base = w < 480 ? 140 : w < 768 ? 150 : 150;
+    const idx = Math.min(colsArr.length - 1, Math.max(0, Math.round((thumbSize - base) / step)));
+    gridStyle.gridTemplateColumns = `repeat(${colsArr[idx]}, 1fr)`;
     gridStyle.gap = `${Math.round(thumbSize * 0.05)}px`;
   } else if (viewMode === 'waterfall' || viewMode === 'all') {
-    const cols = thumbSize > 380 ? 1 : thumbSize > 250 ? 2 : thumbSize > 160 ? 3 : 4;
-    gridStyle.columnCount = cols;
+    const cw = w - 292;
+    if (cw >= 700) {
+      gridStyle['--cols'] = [6, 4, 3, 2, 1][Math.round((thumbSize - 150) / 112)] || 1;
+    } else if (cw >= 350 || w < 480) {
+      gridStyle['--cols'] = w < 480 ? [3, 2, 1][Math.round((thumbSize - 140) / 80)] || 1
+                           : w < 768 ? (cw >= 550 ? [4, 3, 2, 1] : [4, 2, 1])[Math.round((thumbSize - 150) / 80)] || 1
+                           : [4, 3, 2, 2, 1][Math.round((thumbSize - 150) / 80)] || 1;
+    } else {
+      gridStyle['--cols'] = 1;
+      gridStyle['--img-max-h'] = `${Math.round(thumbSize * 1.6)}px`;
+    }
   }
 
   const getGridClass = () => {
