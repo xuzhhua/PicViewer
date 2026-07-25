@@ -200,45 +200,6 @@
   color: var(--text);
 }
 
-/* Thumbnail size slider */
-.thumb-size-slider {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.thumb-size-slider input[type="range"] {
-  width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: var(--border);
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-}
-
-.thumb-size-slider input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-}
-
-.thumb-size-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  min-width: 28px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.thumb-size-slider.disabled {
-  opacity: 0.35;
-  pointer-events: none;
-}
-
 /* Refresh button */
 .refresh-btn {
   background: none;
@@ -550,17 +511,6 @@
   display: none;
 }
 
-/* ===== 平板 / 中等屏幕 ===== */
-@media (max-width: 1024px) {
-  .thumb-size-slider input[type="range"] {
-    width: 60px;
-  }
-  .thumb-size-label {
-    font-size: 9px;
-    min-width: 22px;
-  }
-}
-
 /* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .hamburger {
@@ -575,6 +525,10 @@
   .hamburger img {
     width: 26px;
     height: 26px;
+  }
+
+  .refresh-btn {
+    display: none;
   }
 
   .sidebar {
@@ -613,22 +567,6 @@
     min-height: var(--topbar-height);
   }
 
-  /* 面包屑独占最后一行 */
-  .topbar .breadcrumb {
-    order: 100;
-    width: 100%;
-    flex: none;
-    font-size: 14px;
-    padding: 5px 0;
-    border-top: 1px solid var(--border);
-    gap: 4px;
-  }
-
-  .topbar .breadcrumb .crumb-link {
-    padding: 6px 8px;
-    font-size: 14px;
-  }
-
   /* 控件行 */
   .search-bar {
     flex: 1;
@@ -655,12 +593,6 @@
     font-size: 13px;
     padding: 8px 6px;
     flex-shrink: 0;
-  }
-
-  /* 隐藏滑块和刷新 */
-  .thumb-size-slider,
-  .refresh-btn {
-    display: none;
   }
 
   .content {

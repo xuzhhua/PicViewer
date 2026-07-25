@@ -99,6 +99,63 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [currentPath, browse, lightboxIndex, selectAll]);
 
+  // Desktop: Ctrl+scroll | Mobile: pinch gesture → resize thumbnails
+  const pinchRef = React.useRef({ dist: 0, baseSize: 0 });
+  React.useEffect(() => {
+    const onWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setThumbSize(prev => {
+          const next = Math.min(500, Math.max(120, prev + (e.deltaY > 0 ? -20 : 20)));
+          localStorage.setItem('picviewer-thumb-size', next);
+          return next;
+        });
+      }
+    };
+    // Pinch gesture on content area
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        const d = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+        pinchRef.current = { dist: d, baseSize: parseInt(localStorage.getItem('picviewer-thumb-size')) || 200 };
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchRef.current.dist > 0) {
+        e.preventDefault();
+        const d = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+        const scale = d / pinchRef.current.dist;
+        setThumbSize(prev => {
+          const next = Math.min(500, Math.max(120, Math.round(pinchRef.current.baseSize * scale)));
+          localStorage.setItem('picviewer-thumb-size', next);
+          return next;
+        });
+      }
+    };
+    const onTouchEnd = () => { pinchRef.current.dist = 0; };
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    const content = document.querySelector('.content');
+    if (content) {
+      content.addEventListener('touchstart', onTouchStart, { passive: true });
+      content.addEventListener('touchmove', onTouchMove, { passive: false });
+      content.addEventListener('touchend', onTouchEnd);
+    }
+    return () => {
+      window.removeEventListener('wheel', onWheel);
+      if (content) {
+        content.removeEventListener('touchstart', onTouchStart);
+        content.removeEventListener('touchmove', onTouchMove);
+        content.removeEventListener('touchend', onTouchEnd);
+      }
+    };
+  }, []);
+
   // Debounced search across all folders
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -321,12 +378,6 @@ export default function App() {
                   <option key={o.key} value={o.key}>{o.label}</option>
                 ))}
               </select>
-
-              <div className={`thumb-size-slider${viewMode === 'list' ? ' disabled' : ''}`} title={viewMode === 'list' ? '列表模式不支持缩放' : `缩略图大小: ${thumbSize}px`}>
-                <input type="range" min="120" max="500" value={thumbSize} disabled={viewMode === 'list'}
-                  onChange={e => { const v = parseInt(e.target.value); setThumbSize(v); localStorage.setItem('picviewer-thumb-size', v); }} />
-                <span className="thumb-size-label">{thumbSize}</span>
-              </div>
 
               <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
             </>
