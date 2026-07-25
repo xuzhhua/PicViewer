@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import './FolderTree.css';
 
 export default function FolderTree({
@@ -116,6 +116,41 @@ export default function FolderTree({
     setDragOverId(null);
   }, []);
 
+  // Build full directory tree from root folders to current path
+  const pathTree = useMemo(() => {
+    if (!currentPath || !browseData) return null;
+
+    const normalizedCurrent = currentPath.replace(/\\/g, '/').toLowerCase();
+    // Find which root folder contains the current path
+    const matchingRoot = folders.find(f => {
+      const n = f.path.replace(/\\/g, '/').toLowerCase();
+      return normalizedCurrent === n ||
+        (normalizedCurrent.startsWith(n) && normalizedCurrent[n.length] === '/');
+    });
+
+    if (!matchingRoot) return null;
+
+    const rootPath = matchingRoot.path.replace(/\\/g, '/');
+    const currentNormalized = currentPath.replace(/\\/g, '/');
+    let rel = currentNormalized.substring(rootPath.length);
+    if (rel.startsWith('/')) rel = rel.substring(1);
+    const parts = rel.split('/').filter(Boolean);
+
+    // Build intermediate paths (root → ... → current)
+    let accPath = rootPath;
+    const pathParts = parts.map(part => {
+      accPath += '/' + part;
+      return { name: part, path: accPath };
+    });
+
+    return {
+      root: matchingRoot,
+      pathParts,
+      subfolders: browseData.folders || [],
+      mediaCount: (browseData.images?.length || 0) + (browseData.videos?.length || 0),
+    };
+  }, [currentPath, browseData, folders]);
+
   return (
     <div
       className={`folder-tree${dragOver ? ' drag-over' : ''}`}
@@ -202,31 +237,78 @@ export default function FolderTree({
         </div>
       </div>
 
-      {/* Subfolder tree for current directory */}
-      {browseData && browseData.folders && browseData.folders.length > 0 && (
+      {/* Full directory tree: root → ... → current → subfolders */}
+      {pathTree && (
         <div className="ft-section">
           <div className="ft-section-header">
             <span>
-                <img src="/icons/folder-list.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> {browseData.name || 'Subfolders'}
-              <span className="ft-badge">{browseData.folders.length}</span>
+              <img src="/icons/folder-list.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} />
+              {pathTree.root.name}
             </span>
           </div>
           <div className="ft-list">
-            {currentPath && (
-              <div className="ft-item ft-back" onClick={onBackToRoot}>
-                <span className="ft-icon"><img src="/icons/up.svg" alt="" width="14" height="14" /></span> Back to root
-              </div>
+            {pathTree.pathParts.length === 0 ? (
+              // Current path IS the root folder itself
+              <>
+                {pathTree.subfolders.length > 0 ? (
+                  pathTree.subfolders.map(folder => (
+                    <div
+                      key={folder.path}
+                      className="ft-item ft-sub"
+                      onClick={() => onBrowse(folder.path)}
+                      title={folder.path}
+                    >
+                      <span className="ft-icon"><img src="/icons/folder.svg" alt="" width="14" height="14" /></span>
+                      {folder.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="ft-empty" style={{padding:'7px 12px',fontSize:12,color:'var(--text-muted)'}}>
+                    {pathTree.mediaCount} file{pathTree.mediaCount !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </>
+            ) : (
+              // Current path is deeper than root → show full hierarchy
+              pathTree.pathParts.map((part, i) => {
+                const isLast = i === pathTree.pathParts.length - 1;
+                return (
+                  <React.Fragment key={part.path}>
+                    <div
+                      className={`ft-item ft-sub${isLast ? ' active' : ''}`}
+                      onClick={() => onBrowse(part.path)}
+                      title={part.path}
+                    >
+                      <span className="ft-icon">
+                        <img src={isLast ? '/icons/folder-open.svg' : '/icons/folder.svg'} alt="" width="14" height="14" />
+                      </span>
+                      {part.name}
+                    </div>
+                    {isLast && (
+                      <>
+                        {pathTree.subfolders.length > 0 ? (
+                          pathTree.subfolders.map(folder => (
+                            <div
+                              key={folder.path}
+                              className="ft-item ft-sub"
+                              onClick={() => onBrowse(folder.path)}
+                              title={folder.path}
+                            >
+                              <span className="ft-icon"><img src="/icons/folder.svg" alt="" width="14" height="14" /></span>
+                              {folder.name}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="ft-empty" style={{padding:'7px 12px',fontSize:12,color:'var(--text-muted)'}}>
+                            {pathTree.mediaCount} file{pathTree.mediaCount !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </React.Fragment>
+                );
+              })
             )}
-            {browseData.folders.map(folder => (
-              <div
-                key={folder.path}
-                className={`ft-item ft-sub ${currentPath === folder.path ? 'active' : ''}`}
-                onClick={() => onBrowse(folder.path)}
-                title={folder.path}
-              >
-                <span className="ft-icon"><img src="/icons/folder.svg" alt="" width="14" height="14" /></span> {folder.name}
-              </div>
-            ))}
           </div>
         </div>
       )}
