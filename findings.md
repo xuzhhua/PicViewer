@@ -54,6 +54,8 @@
 - **Capacitor**: 用于编译原生 APK/IPA。需要 Android Studio（Android）或 Xcode + macOS（iOS）
 - **图标**: 使用 sharp 从 SVG 源文件生成 192px 和 512px PNG，支持 `npm run generate-icons` 重新生成
 - **触摸优化**: Apple HIG 44px 最小触摸目标，全局应用 `min-height: 44px`
+- **iOS 全屏安全区**: `viewport-fit=cover` + `black-translucent` + `display: standalone` 会让内容延伸到状态栏/刘海后，必须用 `env(safe-area-inset-*)` 避让。封装为 CSS 变量 `--sat/--sab/--sal/--sar`（桌面为 0，不影响桌面布局）
+- **安全区陷阱**: ①固定高度顶部容器加 `padding-top` 会挤压内容，需改 `min-height: calc(原高 + var(--sat))` + `height: auto`；②媒体查询覆盖规则（如 ≤480px 重写 padding）会覆盖基础规则的安全区 padding，每个覆盖点都要保留 `var(--sat)/var(--sab)`；③`--topbar-height: auto` 会让 `calc(auto + ...)` 非法被丢弃
 - **响应式断点**: 1024px（平板）、768px（手机）、480px（小屏手机）
 - **移动端 Topbar**: 面包屑换行独占一行，控件行在上，避免挤压
 - **Vite host**: 配置 `host: '0.0.0.0'` 允许局域网内其他设备连接

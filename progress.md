@@ -1,5 +1,20 @@
 # PicViewer - 进度日志
 
+## 2026-08-11（iOS 全屏 PWA 安全区修复）
+
+### 问题
+- iPhone/iPad 添加到主屏幕全屏打开时，顶部顶栏被状态栏（时间/信号）遮挡且无法点击
+- 侧边栏头部被遮挡、位置错乱（`--topbar-height: auto` 导致 `calc()` 失效）
+- 灯箱顶栏被遮挡，且按钮过多横向溢出显示不全
+
+### 修复
+- `index.css` 新增 safe-area 变量 `--sat/--sab/--sal/--sar`（`env(safe-area-inset-*)`，桌面为 0）
+- 移除 ≤480px `--topbar-height: auto` 覆盖（使 `calc(var(--topbar-height) + var(--sat))` 恢复有效）
+- 主界面：顶栏/侧边栏头部/底栏/操作栏/缩放提示全部接入安全区 padding
+- 灯箱：顶栏/缩略图条/提示条/信息面板接入安全区 padding
+- 灯箱顶栏移动端改两行布局（文件名行 + 按钮行，按钮右对齐 + 横向滚动兜底）
+- 修复多处媒体查询覆盖规则丢失 safe-area padding 的问题
+
 ## 2026-07-18（移动客户端 + 触摸优化）
 
 ### PWA 可安装应用
