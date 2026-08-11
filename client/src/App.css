@@ -15,8 +15,9 @@
 }
 
 .sidebar-header {
-  padding: 0 16px;
-  height: var(--topbar-height);
+  padding: var(--sat) 16px 0;
+  height: auto;
+  min-height: calc(var(--topbar-height) + var(--sat));
   font-size: 18px;
   font-weight: 700;
   display: flex;
@@ -42,13 +43,13 @@
 }
 
 .topbar {
-  height: var(--topbar-height);
-  min-height: var(--topbar-height);
+  height: calc(var(--topbar-height) + var(--sat));
+  min-height: calc(var(--topbar-height) + var(--sat));
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: var(--sat) 16px 0;
   gap: 12px;
 }
 
@@ -141,7 +142,7 @@
 /* Zoom hint badge */
 .zoom-hint {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--sab));
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
@@ -352,7 +353,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 16px calc(8px + var(--sab));
   background: var(--accent);
   color: #fff;
   font-size: 13px;
@@ -431,7 +432,7 @@
 
 /* Theme toggle */
 .sidebar-footer {
-  padding: 10px 16px;
+  padding: 10px 16px calc(10px + var(--sab));
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
@@ -584,11 +585,11 @@
 
   /* ---- Topbar 换行布局 ---- */
   .topbar {
-    padding: 6px 8px;
+    padding: calc(6px + var(--sat)) 8px 6px;
     gap: 8px;
     flex-wrap: wrap;
     height: auto;
-    min-height: var(--topbar-height);
+    min-height: calc(var(--topbar-height) + var(--sat));
   }
 
   /* 控件行 */
@@ -638,7 +639,7 @@
   .action-bar {
     flex-wrap: wrap;
     gap: 6px;
-    padding: 10px 12px;
+    padding: 10px 12px calc(10px + var(--sab));
     font-size: 14px;
   }
 
@@ -673,7 +674,7 @@
 /* ===== 小屏手机 ===== */
 @media (max-width: 480px) {
   .topbar {
-    padding: 4px 6px;
+    padding: calc(4px + var(--sat)) 6px 4px;
     gap: 5px;
   }
 
@@ -718,7 +719,7 @@
 
   .sidebar-header {
     font-size: 17px;
-    padding: 0 14px;
+    padding: var(--sat) 14px 0;
   }
 
   .context-item {

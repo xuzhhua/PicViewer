@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: calc(12px + var(--sat)) 20px 12px;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(10px);
   flex-shrink: 0;
@@ -293,7 +293,7 @@
 .lightbox-thumbs {
   display: flex;
   gap: 4px;
-  padding: 10px 20px;
+  padding: 10px calc(20px + var(--sal) + var(--sar)) calc(10px + var(--sab));
   overflow-x: auto;
   flex-shrink: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -344,7 +344,7 @@
   display: flex;
   gap: 16px;
   justify-content: center;
-  padding: 6px;
+  padding: 6px calc(6px + var(--sal) + var(--sar)) calc(6px + var(--sab));
   font-size: 11px;
   color: #555;
   flex-shrink: 0;
@@ -359,9 +359,9 @@
 /* Info panel */
 .lightbox-info-panel {
   position: absolute;
-  top: 60px;
+  top: calc(60px + var(--sat));
   right: 16px;
-  bottom: 100px;
+  bottom: calc(100px + var(--sab));
   width: 320px;
   max-width: 90vw;
   background: rgba(0, 0, 0, 0.9);
@@ -441,13 +441,13 @@
 /* ===== 手机端 ===== */
 @media (max-width: 768px) {
   .lightbox-topbar {
-    padding: 8px 12px;
+    padding: calc(8px + var(--sat)) 12px 8px;
     flex-wrap: wrap;
     gap: 8px;
   }
 
   .lightbox-info {
-    flex: 1;
+    flex: 1 1 100%;
     min-width: 0;
     gap: 8px;
   }
@@ -473,8 +473,17 @@
   }
 
   .lightbox-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .lightbox-actions::-webkit-scrollbar {
+    display: none;
   }
 
   .lb-btn {
@@ -520,7 +529,7 @@
   }
 
   .lightbox-thumbs {
-    padding: 10px 12px;
+    padding: 10px 12px calc(10px + var(--sab));
     gap: 6px;
     justify-content: flex-start;
   }
@@ -535,16 +544,16 @@
     gap: 12px;
     font-size: 12px;
     flex-wrap: wrap;
-    padding: 10px 12px;
+    padding: 10px 12px calc(10px + var(--sab));
   }
 
   .lightbox-info-panel {
-    top: 52px;
+    top: calc(52px + var(--sat));
     left: 8px;
     right: 8px;
     width: auto;
     max-width: none;
-    bottom: 64px;
+    bottom: calc(64px + var(--sab));
     max-height: 60vh;
     padding: 18px;
   }
@@ -564,7 +573,7 @@
 /* ===== 小屏手机 ===== */
 @media (max-width: 480px) {
   .lightbox-topbar {
-    padding: 5px 8px;
+    padding: calc(5px + var(--sat)) 8px 5px;
     gap: 5px;
   }
 
@@ -613,12 +622,12 @@
   .lightbox-hints {
     gap: 8px;
     font-size: 11px;
-    padding: 8px 10px;
+    padding: 8px 10px calc(8px + var(--sab));
   }
 
   .lightbox-info-panel {
-    top: 44px;
-    bottom: 56px;
+    top: calc(44px + var(--sat));
+    bottom: calc(56px + var(--sab));
     padding: 14px;
   }
 }

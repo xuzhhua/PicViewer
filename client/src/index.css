@@ -23,6 +23,12 @@
   --sidebar-width: 280px;
   --topbar-height: 48px;
 
+  /* iOS safe-area insets（standalone 全屏时避让状态栏/刘海/Home 条；桌面浏览器为 0） */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* === Z-index scale === */
   --z-sidebar: 100;
   --z-sidebar-overlay: 99;
@@ -143,10 +149,6 @@ body {
 
 /* 小屏手机 */
 @media (max-width: 480px) {
-  :root {
-    --topbar-height: auto;
-  }
-
   body {
     font-size: 15px;
   }
