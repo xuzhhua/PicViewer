@@ -47,7 +47,7 @@ function sortMedia(items, sortBy) {
 }
 
 export default function App() {
-  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search, deleteFiles, removeFromView } = useApi();
+  const { folders, browseData, ignoredFolders, loading, error, setError, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search, deleteFiles, removeFromView } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -502,7 +502,7 @@ export default function App() {
             <span className="action-bar-count">已选 {selectedPaths.size} 项</span>
             <button className="action-btn" onClick={selectAll}>全选</button>
             <button className="action-btn" onClick={clearSelection}>取消</button>
-            <button className="action-btn primary" onClick={handleBatchDownload}><img src="/icons/download.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 批量下载</button>
+            <button className="action-btn primary download-action-btn" onClick={handleBatchDownload}><img src="/icons/download.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 批量下载</button>
             <button className="action-btn danger" onClick={() => handleDeleteRequest([...selectedPaths], 'batch')}><img src="/icons/trash.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 删除所选</button>
           </div>
         )}
@@ -612,8 +612,8 @@ export default function App() {
           ref={ctxMenuRef}
           style={{ left: ctxMenuPos?.left ?? contextMenu.x, top: ctxMenuPos?.top ?? contextMenu.y }}
         >
-          <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}><img src="/icons/note.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 复制路径</div>
-          <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}><img src="/icons/folder-open.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 在文件管理器中打开</div>
+          <div className="context-item copy-path-item" onClick={() => handleCopyPath(contextMenu.item)}><img src="/icons/note.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 复制路径</div>
+          <div className="context-item open-explorer-item" onClick={() => handleOpenInExplorer(contextMenu.item)}><img src="/icons/folder-open.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 在文件管理器中打开</div>
           <div className="context-item" onClick={() => {
             const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path)))
               .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -623,7 +623,7 @@ export default function App() {
           <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 添加到收藏</div>
           <div className="context-item" onClick={() => handleRefreshThumbnail(contextMenu.item)}><img src="/icons/refresh.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 刷新缩略图</div>
           {contextMenu.item.type === 'image' && (
-            <div className="context-item" onClick={async () => {
+            <div className="context-item copy-image-item" onClick={async () => {
               try {
                 const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
                 const img = await fetch(`/api/image/view?path=${enc}`).then(r => r.blob());

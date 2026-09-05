@@ -407,6 +407,19 @@
   background: var(--danger);
 }
 
+/* Desktop-only actions — hide on small screens: batch download (<a download>),
+   open-in-Explorer (server machine's file manager), copy local path / copy image
+   (not usable in a phone), and the pure-keyboard shortcut hint line */
+@media (max-width: 768px) {
+  .download-action-btn,
+  .open-explorer-item,
+  .copy-path-item,
+  .copy-image-item,
+  .context-shortcut {
+    display: none;
+  }
+}
+
 /* Context menu */
 .context-menu {
   position: fixed;

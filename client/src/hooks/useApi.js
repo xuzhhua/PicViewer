@@ -303,6 +303,7 @@ export default function useApi() {
     ignoredFolders,
     loading,
     error,
+    setError,
     pickFolder,
     fetchFolders,
     browse,
