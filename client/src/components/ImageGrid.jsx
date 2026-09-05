@@ -169,14 +169,59 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
   // Compose src — once manually refreshed (rev > 0), force server regen + bust browser cache
   const thumbSrc = getThumbnailUrl(item.path, sharpSize, sharpFit, rev > 0) + (rev > 0 ? `&rev=${rev}` : '');
 
+  // Mobile long-press (~500ms) opens the same context menu (desktop right-click unchanged)
+  const lpRef = useRef({ timer: null, startX: 0, startY: 0, triggered: false });
+  const clearLpTimer = useCallback(() => {
+    const lp = lpRef.current;
+    if (lp.timer) { clearTimeout(lp.timer); lp.timer = null; }
+  }, []);
+  const handleCardTouchStart = useCallback((e) => {
+    if (!e.touches || e.touches.length !== 1) { clearLpTimer(); lpRef.current.triggered = false; return; }
+    const t = e.touches[0];
+    const lp = lpRef.current;
+    clearLpTimer();
+    lp.startX = t.clientX;
+    lp.startY = t.clientY;
+    lp.triggered = false;
+    lp.timer = setTimeout(() => {
+      lp.timer = null;
+      lp.triggered = true;
+      onContextMenu?.({ preventDefault() {}, clientX: lp.startX, clientY: lp.startY }, item);
+    }, 500);
+  }, [clearLpTimer, item, onContextMenu]);
+  const handleCardTouchMove = useCallback((e) => {
+    const lp = lpRef.current;
+    if (!lp.timer || !e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    // Finger moved — this is a scroll/pan, cancel the long-press
+    if (Math.abs(t.clientX - lp.startX) > 12 || Math.abs(t.clientY - lp.startY) > 12) {
+      clearLpTimer();
+      lp.triggered = false;
+    }
+  }, [clearLpTimer]);
+  const handleCardTouchEnd = useCallback(() => { clearLpTimer(); }, [clearLpTimer]);
+  const handleCardClick = useCallback((ev) => {
+    // A long-press just fired — swallow the release click so the menu stays open / no lightbox
+    if (lpRef.current.triggered) {
+      lpRef.current.triggered = false;
+      ev.stopPropagation();
+      return;
+    }
+    onClick(index);
+  }, [onClick, index]);
+
   if (viewMode === 'list') {
     const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
     const fmt = item.format ? item.format.toUpperCase() : '';
     return (
       <div
         className={`media-list-item${isSelected ? ' selected' : ''}`}
-        onClick={() => onClick(index)}
+        onClick={handleCardClick}
         onContextMenu={(e) => onContextMenu?.(e, item)}
+        onTouchStart={handleCardTouchStart}
+        onTouchMove={handleCardTouchMove}
+        onTouchEnd={handleCardTouchEnd}
+        onTouchCancel={handleCardTouchEnd}
       >
         <div className="media-check" onClick={(e) => onToggleSelect?.(item.path, e)}>
           <input type="checkbox" checked={!!isSelected} readOnly />
@@ -214,8 +259,12 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
   return (
     <div
       className={`image-card${isSelected ? ' selected' : ''}`}
-      onClick={() => onClick(index)}
+      onClick={handleCardClick}
       onContextMenu={(e) => onContextMenu?.(e, item)}
+      onTouchStart={handleCardTouchStart}
+      onTouchMove={handleCardTouchMove}
+      onTouchEnd={handleCardTouchEnd}
+      onTouchCancel={handleCardTouchEnd}
     >
       <div className="image-card-thumb">
         <div className="image-check" onClick={(e) => onToggleSelect?.(item.path, e)}>
@@ -276,6 +325,7 @@ function LazyThumbnail({ src, alt, isVideo }) {
         src={src}
         alt={alt}
         loading="lazy"
+        draggable={false}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         style={{ opacity: loaded ? 1 : 0 }}

@@ -160,20 +160,20 @@ export default function FolderTree({
     >
       {dragOver && (
         <div className="ft-drop-overlay">
-          <span><img src="/icons/folder-open.svg" alt="" width="18" height="18" style={{verticalAlign:'middle',marginRight:6}} /> Drop folder here</span>
+          <span><img src="/icons/folder-open.svg" alt="" width="18" height="18" style={{verticalAlign:'middle',marginRight:6}} /> 拖放到这里添加</span>
         </div>
       )}
 
       <div className="ft-section">
         <div className="ft-section-header">
           <span>
-                <img src="/icons/picture-folder.svg" alt="" width="16" height="16" style={{verticalAlign:'middle',marginRight:6}} /> My Folders
+                <img src="/icons/picture-folder.svg" alt="" width="16" height="16" style={{verticalAlign:'middle',marginRight:6}} /> 文件夹
             {folders.length > 0 && <span className="ft-badge">{folders.length}</span>}
           </span>
           <button
             className="ft-add-btn"
             onClick={() => setShowAdd(!showAdd)}
-            title="Add folder"
+            title="添加文件夹"
           >
             {showAdd ? '✕' : '+'}
           </button>
@@ -183,13 +183,13 @@ export default function FolderTree({
           <div className="ft-add-form">
             <input
               type="text"
-              placeholder="Path: D:\\Photos or \\\\server\\share"
+              placeholder="路径，如 D:\Photos 或 \\\\server\\share"
               value={newPath}
               onChange={e => setNewPath(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
               autoFocus
             />
-            <button onClick={handleAdd}>Add</button>
+            <button onClick={handleAdd}>添加</button>
             <button
               className="ft-browse-btn"
               onClick={handleBrowse}
@@ -203,7 +203,7 @@ export default function FolderTree({
 
         <div className="ft-list">
           {folders.length === 0 ? (
-            <div className="ft-empty">Click + to add a folder</div>
+            <div className="ft-empty">点击 + 添加文件夹</div>
           ) : (
             folders.map(folder => (
               <div
@@ -227,7 +227,7 @@ export default function FolderTree({
                 <button
                   className="ft-remove-btn"
                   onClick={(e) => { e.stopPropagation(); onRemoveFolder(folder.id); }}
-                  title="Remove"
+                  title="移除"
                 >
                   ✕
                 </button>
@@ -264,7 +264,7 @@ export default function FolderTree({
                   ))
                 ) : (
                   <div className="ft-empty" style={{padding:'7px 12px',fontSize:12,color:'var(--text-muted)'}}>
-                    {pathTree.mediaCount} file{pathTree.mediaCount !== 1 ? 's' : ''}
+                    {pathTree.mediaCount} 个文件
                   </div>
                 )}
               </>
@@ -300,7 +300,7 @@ export default function FolderTree({
                           ))
                         ) : (
                           <div className="ft-empty" style={{padding:'7px 12px',fontSize:12,color:'var(--text-muted)'}}>
-                            {pathTree.mediaCount} file{pathTree.mediaCount !== 1 ? 's' : ''}
+                            {pathTree.mediaCount} 个文件
                           </div>
                         )}
                       </>

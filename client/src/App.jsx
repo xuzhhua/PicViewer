@@ -57,6 +57,8 @@ export default function App() {
   const [sortBy, setSortBy] = useState('name');
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null);
+  const [ctxMenuPos, setCtxMenuPos] = useState(null); // clamped { left, top } after measuring the menu
+  const ctxMenuRef = React.useRef(null);
   const [thumbRevs, setThumbRevs] = useState({}); // path -> manual thumbnail-refresh revision
   const [pendingDelete, setPendingDelete] = useState(null); // { paths, source: 'context' | 'batch' | 'lightbox' }
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
@@ -257,6 +259,7 @@ export default function App() {
   // Context menu
   const handleContextMenu = useCallback((e, item) => {
     e.preventDefault();
+    setCtxMenuPos(null);
     setContextMenu({ x: e.clientX, y: e.clientY, item });
   }, []);
 
@@ -267,6 +270,29 @@ export default function App() {
       return () => window.removeEventListener('click', close);
     }
   }, [contextMenu]);
+
+  // Keep the context menu fully inside the viewport (long-press at the right/bottom
+  // edge on mobile would otherwise overflow off-screen). Iterative: re-measure the
+  // menu after each reposition and clamp again until it converges inside the viewport.
+  React.useLayoutEffect(() => {
+    if (!contextMenu || !ctxMenuRef.current) return;
+    const el = ctxMenuRef.current;
+    const pad = 8;
+    // Use offsetWidth/Height (layout size) — getBoundingClientRect() includes the
+    // menu's scale-in animation transform and would under-measure during the clamp
+    const rect = el.getBoundingClientRect();
+    const w = el.offsetWidth || rect.width;
+    const h = el.offsetHeight || rect.height;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const curLeft = ctxMenuPos?.left ?? contextMenu.x;
+    const curTop = ctxMenuPos?.top ?? contextMenu.y;
+    const left = Math.max(pad, Math.min(curLeft, vw - w - pad));
+    const top = Math.max(pad, Math.min(curTop, vh - h - pad));
+    if (Math.abs(left - curLeft) > 0.5 || Math.abs(top - curTop) > 0.5) {
+      setCtxMenuPos({ left, top });
+    }
+  }, [contextMenu, ctxMenuPos]);
 
   const handleCopyPath = useCallback((item) => {
     navigator.clipboard.writeText(item.path).catch(() => {});
@@ -302,7 +328,7 @@ export default function App() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Download failed');
+        throw new Error(data.error || '下载失败');
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -411,7 +437,7 @@ export default function App() {
         {favorites.length > 0 && (
           <div className="ft-section fav-section">
             <div className="ft-section-header">
-              <span><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> Favorites ({favorites.length})</span>
+              <span><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 收藏 ({favorites.length})</span>
             </div>
             <div className="ft-list">
               {favorites.map(fav => (
@@ -488,7 +514,7 @@ export default function App() {
           {loading ? (
             <div className="loading">
               <div className="spinner" />
-              Loading...
+              加载中…
             </div>
           ) : browseData ? (
             <>
@@ -502,7 +528,7 @@ export default function App() {
 
               {browseData.folders && browseData.folders.length > 0 && (
                 <div className="folder-section">
-                  <h3 className="section-title"><img src="/icons/folder-list.svg" alt="" width="16" height="16" className="title-icon" /> Folders</h3>
+                  <h3 className="section-title"><img src="/icons/folder-list.svg" alt="" width="16" height="16" className="title-icon" /> 文件夹</h3>
                   <div className="folder-grid">
                     {browseData.folders.map(folder => (
                       <div
@@ -565,15 +591,15 @@ export default function App() {
               {(!browseData.folders || browseData.folders.length === 0) && allMedia.length === 0 && (
                 <div className="empty">
                   <span className="icon"><img src="/icons/folder-open.svg" alt="" width="48" height="48" style={{opacity:0.4}} /></span>
-                  <p>This folder is empty</p>
+                  <p>此文件夹为空</p>
                 </div>
               )}
             </>
           ) : (
             <div className="empty">
               <span className="icon"><img src="/icons/picture-folder.svg" alt="" width="48" height="48" style={{opacity:0.4}} /></span>
-              <p>Select a folder from the sidebar to start browsing</p>
-              <p style={{ fontSize: 12, marginTop: 4 }}>Or click + to add a new folder</p>
+              <p>从侧边栏选择文件夹开始浏览</p>
+              <p style={{ fontSize: 12, marginTop: 4 }}>或点击 + 添加文件夹</p>
             </div>
           )}
         </div>
@@ -581,7 +607,11 @@ export default function App() {
 
       {/* Context menu */}
       {contextMenu && (
-        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
+        <div
+          className="context-menu"
+          ref={ctxMenuRef}
+          style={{ left: ctxMenuPos?.left ?? contextMenu.x, top: ctxMenuPos?.top ?? contextMenu.y }}
+        >
           <div className="context-item" onClick={() => handleCopyPath(contextMenu.item)}><img src="/icons/note.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 复制路径</div>
           <div className="context-item" onClick={() => handleOpenInExplorer(contextMenu.item)}><img src="/icons/folder-open.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 在文件管理器中打开</div>
           <div className="context-item" onClick={() => {

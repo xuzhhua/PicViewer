@@ -531,15 +531,15 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       </div>
 
       <div className={`lightbox-hints${uiVisible ? '' : ' hidden'}`}>
-        <span>← → Navigate</span>
-        {!isVideo && <span>Scroll Zoom</span>}
-        {!isVideo && <span>Double-click 1x/2x</span>}
-        {!isVideo && <span>Drag Pan</span>}
-        {isVideo && <span>← → Seek ±5s</span>}
-        {isVideo && <span>Space Play/Pause</span>}
-        <span>F Fullscreen</span>
-        <span>Esc Close</span>
-        <span>ℹ Info</span>
+        <span>← → 切换</span>
+        {!isVideo && <span>滚动缩放</span>}
+        {!isVideo && <span>双击 1x/2x</span>}
+        {!isVideo && <span>拖拽平移</span>}
+        {isVideo && <span>← → 快退/快进 5s</span>}
+        {isVideo && <span>空格 播放/暂停</span>}
+        <span>F 全屏</span>
+        <span>Esc 关闭</span>
+        <span>ℹ 信息</span>
       </div>
 
       {/* Info panel */}

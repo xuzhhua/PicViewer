@@ -43,7 +43,7 @@ export default function useApi() {
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Browse failed');
+        throw new Error(data.error || '浏览失败');
       }
       const data = await res.json();
       setBrowseData(data);
@@ -65,7 +65,7 @@ export default function useApi() {
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Recursive browse failed');
+        throw new Error(data.error || '递归浏览失败');
       }
       const data = await res.json();
       setBrowseData(data);
@@ -87,7 +87,7 @@ export default function useApi() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Add failed');
+        throw new Error(data.error || '添加失败');
       }
       await fetchFolders();
       return true;
@@ -103,7 +103,7 @@ export default function useApi() {
       const res = await fetch(`/api/folders/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Delete failed');
+        throw new Error(data.error || '删除失败');
       }
       await fetchFolders();
       setBrowseData(null);
@@ -154,7 +154,7 @@ export default function useApi() {
       return null;
     } catch (e) {
       console.error('pickFolder error:', e);
-      setError(e.message || 'Picker failed');
+      setError(e.message || '文件夹选择失败');
       return null;
     }
   }, [addFolder]);
@@ -178,7 +178,7 @@ export default function useApi() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Add ignored failed');
+        throw new Error(data.error || '添加忽略失败');
       }
       await fetchIgnored();
       return true;
@@ -193,7 +193,7 @@ export default function useApi() {
       const res = await fetch(`/api/ignored/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Remove ignored failed');
+        throw new Error(data.error || '移除忽略失败');
       }
       await fetchIgnored();
     } catch (e) {
@@ -211,7 +211,7 @@ export default function useApi() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Delete failed');
+        throw new Error(data.error || '删除失败');
       }
       return await res.json(); // { deleted: [paths], failed: [{ path, message }] }
     } catch (e) {
@@ -253,7 +253,7 @@ export default function useApi() {
       return null;
     } catch (e) {
       console.error('pickIgnoredFolder error:', e);
-      setError(e.message || 'Picker failed');
+      setError(e.message || '文件夹选择失败');
       return null;
     }
   }, [addIgnored]);
@@ -271,7 +271,7 @@ export default function useApi() {
       const res = await fetch(url);
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Search failed');
+        throw new Error(data.error || '搜索失败');
       }
       const data = await res.json();
       // Format search results like browse data for reuse in ImageGrid
