@@ -35,6 +35,7 @@
   --z-lightbox: 200;
   --z-context-menu: 180;
   --z-action-bar: 10;
+  --z-modal: 300;
 
   /* === Typography scale === */
   --font-sans: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', system-ui, sans-serif;

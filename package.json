@@ -68,7 +68,8 @@
     "cors": "^2.8.5",
     "dicom-parser": "^1.8.21",
     "express": "^4.21.0",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "trash": "^7.2.0"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",

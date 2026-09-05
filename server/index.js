@@ -10,6 +10,7 @@ const downloadRouter = require('./routes/download');
 const ignoredRouter = require('./routes/ignored');
 const searchRouter = require('./routes/search');
 const actionsRouter = require('./routes/actions');
+const deleteRouter = require('./routes/delete');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/download', downloadRouter);
 app.use('/api/ignored', ignoredRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/actions', actionsRouter);
+app.use('/api/delete', deleteRouter);
 
 // Serve React build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

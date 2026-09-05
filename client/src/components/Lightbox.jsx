@@ -7,7 +7,7 @@ const MAX_ZOOM = 8;
 const ZOOM_STEP = 0.15;
 const SWIPE_THRESHOLD = 60;
 
-export default function Lightbox({ images, currentIndex, onClose, onNavigate, favorites, onAddFavorite, onRemoveFavorite }) {
+export default function Lightbox({ images, currentIndex, onClose, onNavigate, favorites, onAddFavorite, onRemoveFavorite, onDeleteRequest, keyboardDisabled }) {
   const { getImageUrl, getThumbnailUrl } = useApi();
   const [loaded, setLoaded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -185,8 +185,13 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   useEffect(() => {
     const handleKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (keyboardDisabled) return;
       switch (e.key) {
         case 'Escape': onClose(); break;
+        case 'Delete':
+          e.preventDefault();
+          onDeleteRequest?.(item);
+          break;
         case 'f':
           if (!e.ctrlKey && !e.metaKey) { toggleFullscreen(); }
           break;
@@ -232,7 +237,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose, goNext, goPrev, isVideo, resetView, toggleFullscreen]);
+  }, [onClose, goNext, goPrev, isVideo, resetView, toggleFullscreen, onDeleteRequest, keyboardDisabled, item]);
 
   // Mouse wheel zoom
   const handleWheel = useCallback((e) => {
@@ -427,6 +432,9 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
           )}
           <button className="lb-btn" onClick={handleDownload} title="下载">
             <img src="/icons/download.svg" alt="" width="16" height="16" />
+          </button>
+          <button className="lb-btn danger" onClick={() => onDeleteRequest?.(item)} title="删除 (Delete)">
+            <img src="/icons/trash.svg" alt="" width="16" height="16" />
           </button>
           <button className="lb-btn" onClick={async () => {
             const fav = favorites?.find(f => f.path === item.path);

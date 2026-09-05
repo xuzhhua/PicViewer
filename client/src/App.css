@@ -397,6 +397,16 @@
   background: #f0f0ff;
 }
 
+.action-btn.danger {
+  background: rgba(var(--danger-rgb), 0.92);
+  border-color: transparent;
+  color: #fff;
+}
+
+.action-btn.danger:hover {
+  background: var(--danger);
+}
+
 /* Context menu */
 .context-menu {
   position: fixed;
@@ -428,6 +438,18 @@
 
 .context-item:active {
   background: rgba(var(--accent-rgb), 0.15);
+}
+
+.context-item.danger {
+  color: var(--danger);
+}
+
+.context-item.danger:hover {
+  background: rgba(var(--danger-rgb), 0.12);
+}
+
+.context-item.danger:active {
+  background: rgba(var(--danger-rgb), 0.2);
 }
 
 /* Theme toggle */

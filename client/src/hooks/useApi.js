@@ -199,6 +199,45 @@ export default function useApi() {
     }
   }, [fetchIgnored]);
 
+  // Move files to the system recycle bin (recoverable delete)
+  const deleteFiles = useCallback(async (paths) => {
+    try {
+      const res = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Delete failed');
+      }
+      return await res.json(); // { deleted: [paths], failed: [{ path, message }] }
+    } catch (e) {
+      setError(e.message);
+      return null;
+    }
+  }, []);
+
+  // Locally drop successfully deleted items from the current view (no server round-trip)
+  const removeFromView = useCallback((deletedPaths) => {
+    if (!deletedPaths || deletedPaths.length === 0) return;
+    const gone = new Set(deletedPaths);
+    setBrowseData(prev => {
+      if (!prev) return prev;
+      const removedCount =
+        (prev.images || []).filter(i => gone.has(i.path)).length +
+        (prev.videos || []).filter(v => gone.has(v.path)).length;
+      if (removedCount === 0) return prev;
+      const next = {
+        ...prev,
+        images: (prev.images || []).filter(i => !gone.has(i.path)),
+        videos: (prev.videos || []).filter(v => !gone.has(v.path))
+      };
+      if (typeof prev.total === 'number') next.total = Math.max(0, prev.total - removedCount);
+      return next;
+    });
+  }, []);
+
   // Open native folder picker for ignored folders
   const pickIgnoredFolder = useCallback(async () => {
     try {
@@ -274,6 +313,8 @@ export default function useApi() {
     removeIgnored,
     pickIgnoredFolder,
     search,
+    deleteFiles,
+    removeFromView,
     getThumbnailUrl,
     getImageUrl
   };

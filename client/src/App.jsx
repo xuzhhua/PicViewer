@@ -4,6 +4,7 @@ import ImageGrid, { VideoGrid } from './components/ImageGrid';
 import Lightbox from './components/Lightbox';
 import SearchBar from './components/SearchBar';
 import IgnoredFolders from './components/IgnoredFolders';
+import ConfirmDialog from './components/ConfirmDialog';
 import useApi from './hooks/useApi';
 import './App.css';
 
@@ -46,7 +47,7 @@ function sortMedia(items, sortBy) {
 }
 
 export default function App() {
-  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search } = useApi();
+  const { folders, browseData, ignoredFolders, loading, error, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search, deleteFiles, removeFromView } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -56,6 +57,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState('name');
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null); // { paths, source: 'context' | 'batch' | 'lightbox' }
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
   function getThumbSizes() {
     const w = window.innerWidth;
@@ -237,13 +239,12 @@ export default function App() {
     setLightboxIndex(-1);
   }, []);
 
-  // Multi-select
-  const toggleSelect = useCallback((path, e) => {
+  // Multi-select — toggles the item in/out of the selection on any click
+  // (checkbox single-click should work without needing Ctrl)
+  const toggleSelect = useCallback((path) => {
     setSelectedPaths(prev => {
       const next = new Set(prev);
-      if (e?.ctrlKey || e?.metaKey) {
-        if (next.has(path)) next.delete(path); else next.add(path);
-      }
+      if (next.has(path)) next.delete(path); else next.add(path);
       return next;
     });
   }, []);
@@ -309,6 +310,51 @@ export default function App() {
     }
     setSelectedPaths(new Set());
   }, [selectedPaths]);
+
+  // Request file deletion — opens the confirm dialog
+  const handleDeleteRequest = useCallback((paths, source) => {
+    if (!paths || paths.length === 0) return;
+    setContextMenu(null);
+    setPendingDelete({ paths, source });
+  }, []);
+
+  // Execute deletion after the user confirms
+  async function handleConfirmDelete() {
+    if (!pendingDelete) return;
+    const { paths, source } = pendingDelete;
+    setPendingDelete(null);
+
+    const result = await deleteFiles(paths);
+    if (!result) return; // request-level error already surfaced via setError
+
+    const deleted = result.deleted || [];
+    const failed = result.failed || [];
+    if (failed.length > 0) {
+      const sample = failed.slice(0, 3).map(f => (f.path || '').split(/[\\/]/).pop()).join('、');
+      setError(`有 ${failed.length} 项未能删除${sample ? `：${sample}` : ''}${failed.length > 3 ? '…' : ''}（可能位于不支持回收站的网络位置）。`);
+    }
+    if (deleted.length === 0) return;
+
+    // If deleting from the lightbox, keep it open on the item now at that position
+    if (source === 'lightbox') {
+      const gone = new Set(deleted);
+      const removedInView = allMedia.filter(m => gone.has(m.path)).length;
+      const nextLen = allMedia.length - removedInView;
+      if (nextLen <= 0) {
+        setLightboxIndex(-1);
+      } else {
+        setLightboxIndex(prev => Math.min(prev, nextLen - 1));
+      }
+    }
+
+    // Drop deleted items from the current view + selection (no loading flash)
+    removeFromView(deleted);
+    setSelectedPaths(prev => {
+      const next = new Set(prev);
+      deleted.forEach(p => next.delete(p));
+      return next;
+    });
+  }
 
   // Filter and sort
   const rawImages = browseData?.images?.filter(img =>
@@ -423,6 +469,7 @@ export default function App() {
             <button className="action-btn" onClick={selectAll}>全选</button>
             <button className="action-btn" onClick={clearSelection}>取消</button>
             <button className="action-btn primary" onClick={handleBatchDownload}><img src="/icons/download.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 批量下载</button>
+            <button className="action-btn danger" onClick={() => handleDeleteRequest([...selectedPaths], 'batch')}><img src="/icons/trash.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:4}} /> 删除所选</button>
           </div>
         )}
 
@@ -469,14 +516,14 @@ export default function App() {
                   images={filteredImages}
                   onImageClick={(i) => {
                     if (selectedPaths.size > 0) {
-                      toggleSelect(filteredImages[i].path, { ctrlKey: true });
+                      toggleSelect(filteredImages[i].path);
                     } else {
                       handleOpenLightbox(i);
                     }
                   }}
                   viewMode={browseData.isSearch ? 'grid' : viewMode}
                   selectedPaths={selectedPaths}
-                  onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
+                  onToggleSelect={(path, e) => { e?.stopPropagation(); toggleSelect(path); }}
                   onContextMenu={handleContextMenu}
                   onBrowseFolder={handleBrowse}
                   isSearch={browseData.isSearch}
@@ -490,14 +537,14 @@ export default function App() {
                   videos={filteredVideos}
                   onVideoClick={(i) => {
                     if (selectedPaths.size > 0) {
-                      toggleSelect(filteredVideos[i].path, { ctrlKey: true });
+                      toggleSelect(filteredVideos[i].path);
                     } else {
                       handleOpenLightbox(filteredImages.length + i);
                     }
                   }}
                   viewMode={browseData.isSearch ? 'grid' : viewMode}
                   selectedPaths={selectedPaths}
-                  onToggleSelect={(path, e) => { e.stopPropagation(); toggleSelect(path, e || { ctrlKey: true }); }}
+                  onToggleSelect={(path, e) => { e?.stopPropagation(); toggleSelect(path); }}
                   onContextMenu={handleContextMenu}
                   onBrowseFolder={handleBrowse}
                   isSearch={browseData.isSearch}
@@ -553,6 +600,10 @@ export default function App() {
             }}><img src="/icons/folder.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 跳转到所在文件夹</div>
           )}
           <div className="context-separator" />
+          <div className="context-item danger" onClick={() => handleDeleteRequest([contextMenu.item.path], 'context')}>
+            <img src="/icons/trash.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 删除
+          </div>
+          <div className="context-separator" />
           <div className="context-item context-shortcut">
             <span>快捷键提示: Ctrl+F 搜索 · F5 刷新 · Ctrl+A 全选</span>
           </div>
@@ -569,6 +620,21 @@ export default function App() {
           favorites={favorites}
           onAddFavorite={addFavorite}
           onRemoveFavorite={removeFavorite}
+          onDeleteRequest={(item) => handleDeleteRequest([item.path], 'lightbox')}
+          keyboardDisabled={!!pendingDelete}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      {pendingDelete && (
+        <ConfirmDialog
+          open
+          title={pendingDelete.paths.length > 1 ? `删除所选 ${pendingDelete.paths.length} 项？` : '删除文件？'}
+          message="文件将被移入系统回收站，可从回收站恢复。"
+          names={pendingDelete.paths.map(p => (p || '').split(/[\\/]/).pop())}
+          confirmText="删除"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </div>
