@@ -18,7 +18,7 @@ function formatDate(dateStr) {
   });
 }
 
-export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
+export default function ImageGrid({ images, onImageClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize, thumbRev }) {
   const { getThumbnailUrl } = useApi();
 
   const gridStyle = {};
@@ -72,6 +72,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
             onBrowseFolder={onBrowseFolder}
             isSearch={isSearch}
             thumbSize={thumbSize}
+            thumbRev={thumbRev}
           />
         ))}
       </div>
@@ -79,7 +80,7 @@ export default function ImageGrid({ images, onImageClick, viewMode, selectedPath
   );
 }
 
-export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize }) {
+export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize, thumbRev }) {
   const { getThumbnailUrl } = useApi();
 
   const gridStyle = {};
@@ -133,6 +134,7 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
             onBrowseFolder={onBrowseFolder}
             isSearch={isSearch}
             thumbSize={thumbSize}
+            thumbRev={thumbRev}
           />
         ))}
       </div>
@@ -140,8 +142,10 @@ export function VideoGrid({ videos, onVideoClick, viewMode, selectedPaths, onTog
   );
 }
 
-function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize: overrideSize }) {
+function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected, onToggleSelect, onContextMenu, onBrowseFolder, isSearch, thumbSize: overrideSize, thumbRev }) {
   const isVideo = item.type === 'video';
+  // Manual thumbnail refresh revision — a bumped value changes the URL to bypass caches
+  const rev = (thumbRev && thumbRev[item.path]) || 0;
   // Display size comes from CSS grid column. Sharp renders at 2x for HiDPI quality.
   let sharpSize, sharpFit;
   if (overrideSize) {
@@ -162,6 +166,9 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
     }
   }
 
+  // Compose src — once manually refreshed (rev > 0), force server regen + bust browser cache
+  const thumbSrc = getThumbnailUrl(item.path, sharpSize, sharpFit, rev > 0) + (rev > 0 ? `&rev=${rev}` : '');
+
   if (viewMode === 'list') {
     const dims = item.width && item.height ? `${item.width}×${item.height}` : '';
     const fmt = item.format ? item.format.toUpperCase() : '';
@@ -177,7 +184,7 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
         <div className="media-list-thumb">
           <LazyThumbnail
             key={`${item.path}-${sharpSize}`}
-            src={getThumbnailUrl(item.path, sharpSize, sharpFit)}
+            src={thumbSrc}
             alt={item.name}
             isVideo={isVideo}
           />
@@ -216,7 +223,7 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
         </div>
         <LazyThumbnail
           key={`${item.path}-${sharpSize}`}
-          src={getThumbnailUrl(item.path, sharpSize, sharpFit)}
+          src={thumbSrc}
           alt={item.name}
           isVideo={isVideo}
         />

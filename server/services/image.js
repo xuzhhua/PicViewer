@@ -366,12 +366,20 @@ function serveBrokenImagePlaceholder(size, res) {
 }
 
 // Generate and serve thumbnail
-async function serveThumbnail(filePath, size, fit, res) {
+async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   if (!isPathAllowed(filePath)) {
     throw Object.assign(new Error('Path not allowed'), { status: 403 });
   }
 
   await fs.access(filePath, fs.constants.R_OK);
+
+  // Force refresh: drop the cached thumbnail (+broken marker) for this size/fit
+  // so it is regenerated on this request (used by the “刷新缩略图” context action)
+  if (opts.refresh) {
+    const staleKey = getCacheKey(filePath, size, fit);
+    try { await fs.unlink(staleKey); } catch (_) { /* no cache file */ }
+    try { await fs.unlink(staleKey + '.broken'); } catch (_) { /* no broken marker */ }
+  }
 
   // Video thumbnail — extract frame via ffmpeg
   const ext = path.extname(filePath).toLowerCase();

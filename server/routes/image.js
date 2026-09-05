@@ -26,19 +26,20 @@ router.get('/view', async (req, res) => {
 });
 
 // Get thumbnail
-// GET /api/image/thumbnail?path=<base64 encoded path>&size=256&fit=cover
+// GET /api/image/thumbnail?path=<base64 encoded path>&size=256&fit=cover&refresh=1
 router.get('/thumbnail', async (req, res) => {
   try {
     const encodedPath = req.query.path;
     const size = parseInt(req.query.size) || 256;
     const fit = req.query.fit || 'cover'; // 'cover' or 'inside'
+    const refresh = req.query.refresh === '1';
 
     if (!encodedPath) {
       return res.status(400).json({ error: 'Path is required' });
     }
 
     const filePath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
-    await imageService.serveThumbnail(filePath, size, fit, res);
+    await imageService.serveThumbnail(filePath, size, fit, res, { refresh });
   } catch (err) {
     if (err.code === 'ENOENT') {
       return res.status(404).json({ error: 'File not found' });

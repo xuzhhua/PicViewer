@@ -57,6 +57,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState('name');
   const [selectedPaths, setSelectedPaths] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null);
+  const [thumbRevs, setThumbRevs] = useState({}); // path -> manual thumbnail-refresh revision
   const [pendingDelete, setPendingDelete] = useState(null); // { paths, source: 'context' | 'batch' | 'lightbox' }
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
   function getThumbSizes() {
@@ -274,6 +275,13 @@ export default function App() {
 
   const handleOpenInExplorer = useCallback(async (item) => {
     try { await fetch('/api/actions/explorer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ path: item.path }) }); } catch (_) {}
+    setContextMenu(null);
+  }, []);
+
+  // Force-regenerate this item's thumbnail (bump revision => new URL + server refresh=1)
+  const handleRefreshThumbnail = useCallback((item) => {
+    if (!item?.path) return;
+    setThumbRevs(prev => ({ ...prev, [item.path]: (prev[item.path] || 0) + 1 }));
     setContextMenu(null);
   }, []);
 
@@ -513,6 +521,7 @@ export default function App() {
               {filteredImages.length > 0 && (
                 <ImageGrid
                   key={`img-${thumbSize}`}
+                  thumbRev={thumbRevs}
                   images={filteredImages}
                   onImageClick={(i) => {
                     if (selectedPaths.size > 0) {
@@ -534,6 +543,7 @@ export default function App() {
               {filteredVideos.length > 0 && (
                 <VideoGrid
                   key={`vid-${thumbSize}`}
+                  thumbRev={thumbRevs}
                   videos={filteredVideos}
                   onVideoClick={(i) => {
                     if (selectedPaths.size > 0) {
@@ -581,6 +591,7 @@ export default function App() {
             setContextMenu(null);
           }}><img src="/icons/chain.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 新标签页打开</div>
           <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 添加到收藏</div>
+          <div className="context-item" onClick={() => handleRefreshThumbnail(contextMenu.item)}><img src="/icons/refresh.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 刷新缩略图</div>
           {contextMenu.item.type === 'image' && (
             <div className="context-item" onClick={async () => {
               try {

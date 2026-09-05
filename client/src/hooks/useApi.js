@@ -127,10 +127,12 @@ export default function useApi() {
     }
   }, [fetchFolders]);
 
-  // Get thumbnail URL
-  const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover') => {
+  // Get thumbnail URL (refresh=1 forces the server to regenerate the cached thumbnail)
+  const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover', refresh = false) => {
     const encoded = encodePath(filePath);
-    return `/api/image/thumbnail?path=${encoded}&size=${size}&fit=${fit}`;
+    let url = `/api/image/thumbnail?path=${encoded}&size=${size}&fit=${fit}`;
+    if (refresh) url += '&refresh=1';
+    return url;
   }, []);
 
   // Get original image URL
