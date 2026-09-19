@@ -263,12 +263,32 @@ export default function App() {
     setContextMenu({ x: e.clientX, y: e.clientY, item });
   }, []);
 
+  // Dismiss the context menu when pressing anywhere outside it, or when the view
+  // scrolls / resizes (the menu is position:fixed, so it would otherwise float in
+  // place while the grid scrolls underneath).
+  // NOTE: listening for 'click' alone is NOT enough — the card checkbox calls
+  // stopPropagation() (to avoid opening the lightbox), so that click never reaches
+  // window and the menu stayed stuck on screen after "long-press → select" on mobile.
+  // 'pointerdown' fires before any click handler can stop propagation, and the
+  // capture phase also catches scroll events from the .content container (they do
+  // not bubble to window).
   React.useEffect(() => {
-    if (contextMenu) {
-      const close = () => setContextMenu(null);
-      window.addEventListener('click', close);
-      return () => window.removeEventListener('click', close);
-    }
+    if (!contextMenu) return;
+    const onPointerDown = (e) => {
+      if (ctxMenuRef.current?.contains(e.target)) return; // keep menu item taps working
+      setContextMenu(null);
+    };
+    const close = () => setContextMenu(null);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('touchstart', onPointerDown, true); // fallback for old iOS
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('touchstart', onPointerDown, true);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [contextMenu]);
 
   // Keep the context menu fully inside the viewport (long-press at the right/bottom
@@ -454,7 +474,20 @@ export default function App() {
           </div>
         )}
         <div className="sidebar-footer">
-          <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="切换主题">
+          <button
+            className="footer-btn"
+            onClick={() => currentPath ? browse(currentPath, true) : browse('', true)}
+            title="刷新 (F5)"
+            aria-label="刷新"
+          >
+            <img src="/icons/refresh.svg" alt="" width="18" height="18" />
+          </button>
+          <button
+            className="footer-btn"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title="切换主题"
+            aria-label="切换主题"
+          >
             <img src={theme === 'dark' ? '/icons/moon.svg' : '/icons/sun.svg'} alt="" width="18" height="18" />
           </button>
         </div>
@@ -491,8 +524,6 @@ export default function App() {
                   <option key={o.key} value={o.key}>{o.label}</option>
                 ))}
               </select>
-
-              <button className="refresh-btn" onClick={() => currentPath ? browse(currentPath, true) : browse('', true)} title="刷新 (F5)"><img src="/icons/refresh.svg" alt="" width="16" height="16" /></button>
             </>
           )}
         </div>

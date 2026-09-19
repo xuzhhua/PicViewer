@@ -225,29 +225,6 @@
   color: var(--text);
 }
 
-/* Refresh button */
-.refresh-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 5px 8px;
-  border-radius: 5px;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, transform 0.1s;
-}
-
-.refresh-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.refresh-btn:active {
-  transform: scale(0.92);
-  background: rgba(var(--accent-rgb), 0.1);
-}
-
 /* Context menu enhancements */
 .context-separator {
   height: 1px;
@@ -465,30 +442,46 @@
   background: rgba(var(--danger-rgb), 0.2);
 }
 
-/* Theme toggle */
+/* Sidebar footer actions (refresh + theme) — shared by desktop & mobile */
 .sidebar-footer {
+  display: flex;
+  gap: 8px;
   padding: 10px 16px calc(10px + var(--sab));
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
 
-.theme-toggle {
+.footer-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
-  padding: 7px 14px;
+  padding: 7px 10px;
   cursor: pointer;
-  font-size: 16px;
-  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
   transition: background 0.15s, transform 0.1s;
 }
 
-.theme-toggle:hover {
+.footer-btn img {
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.footer-btn:hover {
   background: rgba(var(--accent-rgb), 0.1);
 }
 
-.theme-toggle:active {
+.footer-btn:hover img {
+  opacity: 1;
+}
+
+.footer-btn:active {
   transform: scale(0.97);
 }
 
@@ -587,8 +580,9 @@
     height: 26px;
   }
 
-  .refresh-btn {
-    display: none;
+  /* 侧边栏底部按钮在手机上加大触控区域 */
+  .footer-btn {
+    padding: 12px 10px;
   }
 
   .sidebar {
