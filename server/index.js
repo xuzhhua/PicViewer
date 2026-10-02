@@ -44,7 +44,16 @@ app.use('/api/delete', deleteRouter);
 // Serve React build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist));
+  app.use(
+    express.static(clientDist, {
+      setHeaders(res, filePath) {
+        // Service Worker 脚本必须每次都回源校验，否则新版本的发现会被延迟
+        if (path.basename(filePath) === 'sw.js') {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    })
+  );
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
       res.sendFile(path.join(clientDist, 'index.html'));

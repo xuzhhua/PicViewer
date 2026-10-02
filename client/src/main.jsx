@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { registerServiceWorker } from './pwa';
 import './index.css';
 
 // Inject PWA manifest inline to bypass auth proxy CORS
@@ -32,19 +33,8 @@ import './index.css';
   document.head.appendChild(link);
 })();
 
-// Register PWA Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(
-      (registration) => {
-        console.log('[PWA] Service Worker registered:', registration.scope);
-      },
-      (err) => {
-        console.warn('[PWA] Service Worker registration failed:', err);
-      }
-    );
-  });
-}
+// Register PWA Service Worker + 更新检测（dev 下自动跳过，见 src/pwa.js）
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

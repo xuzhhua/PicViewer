@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
+import swVersionPlugin from './vite-plugin-sw-version.js';
 
 // Read server port from config, same logic as server/index.js
 function getServerPort() {
@@ -16,7 +17,7 @@ function getServerPort() {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), swVersionPlugin()],
   server: {
     host: '0.0.0.0',  // Allow mobile devices on same network to connect
     port: 5173,

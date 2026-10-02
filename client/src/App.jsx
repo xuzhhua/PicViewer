@@ -5,7 +5,9 @@ import Lightbox from './components/Lightbox';
 import SearchBar from './components/SearchBar';
 import IgnoredFolders from './components/IgnoredFolders';
 import ConfirmDialog from './components/ConfirmDialog';
+import UpdateToast from './components/UpdateToast';
 import useApi from './hooks/useApi';
+import { checkForUpdate } from './pwa';
 import './App.css';
 
 const VIEW_MODES = [
@@ -95,7 +97,13 @@ export default function App() {
 
   // Favorites
   const fetchFavorites = useCallback(async () => {
-    try { const r = await fetch('/api/actions'); setFavorites(await r.json()); } catch (_) {}
+    try {
+      const r = await fetch('/api/actions');
+      const data = await r.json();
+      // 离线时 SW 会返回 503 + { error: 'offline' }，不能拿它覆盖数组，
+      // 否则灯箱里的 favorites.find 会炸；失败时保留上次的列表
+      if (Array.isArray(data)) setFavorites(data);
+    } catch (_) { /* 保留上次的收藏列表 */ }
   }, []);
   const addFavorite = useCallback(async (item) => {
     try {
@@ -476,7 +484,12 @@ export default function App() {
         <div className="sidebar-footer">
           <button
             className="footer-btn"
-            onClick={() => currentPath ? browse(currentPath, true) : browse('', true)}
+            onClick={() => {
+              if (currentPath) browse(currentPath, true);
+              else browse('', true);
+              // 顺带检查有没有新版本（有的话会弹出更新提示条）
+              checkForUpdate({ force: true });
+            }}
             title="刷新 (F5)"
             aria-label="刷新"
           >
@@ -709,6 +722,9 @@ export default function App() {
           onCancel={() => setPendingDelete(null)}
         />
       )}
+
+      {/* PWA 新版本提示条 */}
+      <UpdateToast />
     </div>
   );
 }

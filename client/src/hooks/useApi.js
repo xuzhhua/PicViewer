@@ -11,6 +11,22 @@ function encodePath(filePath) {
     .replace(/=+$/, '');
 }
 
+/**
+ * 读取一个「应该是数组」的 JSON 响应。
+ *
+ * 离线时 Service Worker 会给 /api/* 返回 503 + { error: 'offline' }，
+ * 如果不校验就 setState，数组会被换成对象，下游的 .map/.find 直接抛
+ * TypeError 把整棵 React 树炸掉（而不是优雅降级）。
+ */
+async function readArrayResponse(res, label) {
+  if (!res.ok) {
+    throw new Error(res.status === 503 ? '离线：无法连接服务器' : `${label}失败（HTTP ${res.status}）`);
+  }
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error(`${label}：服务器返回了非预期的数据格式`);
+  return data;
+}
+
 export default function useApi() {
   const [folders, setFolders] = useState([]);
   const [browseData, setBrowseData] = useState(null);
@@ -22,10 +38,12 @@ export default function useApi() {
   const fetchFolders = useCallback(async () => {
     try {
       const res = await fetch('/api/folders');
-      const data = await res.json();
-      setFolders(data);
+      setFolders(await readArrayResponse(res, '加载文件夹列表'));
+      setError(null);
     } catch (e) {
+      // 失败时保持原有数组，只把原因告知用户（不要用错误对象覆盖掉数组）
       console.error('Failed to fetch folders:', e);
+      setError(e.message);
     }
   }, []);
 
@@ -162,10 +180,10 @@ export default function useApi() {
   const fetchIgnored = useCallback(async () => {
     try {
       const res = await fetch('/api/ignored');
-      const data = await res.json();
-      setIgnoredFolders(data);
+      setIgnoredFolders(await readArrayResponse(res, '加载忽略列表'));
     } catch (e) {
       console.error('Failed to fetch ignored folders:', e);
+      setError(e.message);
     }
   }, []);
 
