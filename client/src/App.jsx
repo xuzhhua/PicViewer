@@ -63,6 +63,7 @@ export default function App() {
   const ctxMenuRef = React.useRef(null);
   const [thumbRevs, setThumbRevs] = useState({}); // path -> manual thumbnail-refresh revision
   const [pendingDelete, setPendingDelete] = useState(null); // { paths, source: 'context' | 'batch' | 'lightbox' }
+  const [pendingPermanent, setPendingPermanent] = useState(null); // same shape, for non-recyclable (network) paths
   const [theme, setTheme] = useState(() => localStorage.getItem('picviewer-theme') || 'dark');
   function getThumbSizes() {
     const w = window.innerWidth;
@@ -380,20 +381,14 @@ export default function App() {
     setPendingDelete({ paths, source });
   }, []);
 
-  // Execute deletion after the user confirms
-  async function handleConfirmDelete() {
-    if (!pendingDelete) return;
-    const { paths, source } = pendingDelete;
-    setPendingDelete(null);
-
-    const result = await deleteFiles(paths);
-    if (!result) return; // request-level error already surfaced via setError
-
-    const deleted = result.deleted || [];
-    const failed = result.failed || [];
+  // Reflect a finished delete on the current view (no loading flash)
+  // NOTE: deliberately a plain function, not useCallback — it reads `allMedia`,
+  // which is declared further down in this component, so listing it as a hook
+  // dependency would evaluate it during render and hit the temporal dead zone.
+  function applyDeleteResult(deleted, failed, source) {
     if (failed.length > 0) {
       const sample = failed.slice(0, 3).map(f => (f.path || '').split(/[\\/]/).pop()).join('、');
-      setError(`有 ${failed.length} 项未能删除${sample ? `：${sample}` : ''}${failed.length > 3 ? '…' : ''}（可能位于不支持回收站的网络位置）。`);
+      setError(`有 ${failed.length} 项未能删除${sample ? `：${sample}` : ''}${failed.length > 3 ? '…' : ''}（文件可能被占用或没有权限）。`);
     }
     if (deleted.length === 0) return;
 
@@ -416,6 +411,37 @@ export default function App() {
       deleted.forEach(p => next.delete(p));
       return next;
     });
+  }
+
+  // Execute deletion after the user confirms
+  async function handleConfirmDelete() {
+    if (!pendingDelete) return;
+    const { paths, source } = pendingDelete;
+    setPendingDelete(null);
+
+    const result = await deleteFiles(paths);
+    if (!result) return; // request-level error already surfaced via setError
+
+    const deleted = result.deleted || [];
+    const failed = result.failed || [];
+    const needsPermanent = result.needsPermanent || [];
+    applyDeleteResult(deleted, failed, source);
+
+    // Network/mapped locations have no Recycle Bin, so those files need an
+    // explicit second confirmation before the irreversible delete.
+    if (needsPermanent.length > 0) setPendingPermanent({ paths: needsPermanent, source });
+  }
+
+  // Execute the permanent delete the user explicitly confirmed
+  async function handleConfirmPermanentDelete() {
+    if (!pendingPermanent) return;
+    const { paths, source } = pendingPermanent;
+    setPendingPermanent(null);
+
+    const result = await deleteFiles(paths, { permanent: true });
+    if (!result) return;
+
+    applyDeleteResult(result.deleted || [], result.failed || [], source);
   }
 
   // Filter and sort
@@ -706,7 +732,7 @@ export default function App() {
           onAddFavorite={addFavorite}
           onRemoveFavorite={removeFavorite}
           onDeleteRequest={(item) => handleDeleteRequest([item.path], 'lightbox')}
-          keyboardDisabled={!!pendingDelete}
+          keyboardDisabled={!!pendingDelete || !!pendingPermanent}
         />
       )}
 
@@ -715,11 +741,24 @@ export default function App() {
         <ConfirmDialog
           open
           title={pendingDelete.paths.length > 1 ? `删除所选 ${pendingDelete.paths.length} 项？` : '删除文件？'}
-          message="文件将被移入系统回收站，可从回收站恢复。"
+          message="文件将被移入系统回收站，可从回收站恢复（网络/映射盘等不支持回收站的位置会再次确认）。"
           names={pendingDelete.paths.map(p => (p || '').split(/[\\/]/).pop())}
           confirmText="删除"
           onConfirm={handleConfirmDelete}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {/* Permanent delete confirmation — only for non-recyclable (network/mapped) locations */}
+      {pendingPermanent && (
+        <ConfirmDialog
+          open
+          title={pendingPermanent.paths.length > 1 ? `永久删除所选 ${pendingPermanent.paths.length} 项？` : '永久删除文件？'}
+          message="该位置不支持系统回收站（网络或映射盘），文件将被永久删除且无法恢复。"
+          names={pendingPermanent.paths.map(p => (p || '').split(/[\\/]/).pop())}
+          confirmText="永久删除"
+          onConfirm={handleConfirmPermanentDelete}
+          onCancel={() => setPendingPermanent(null)}
         />
       )}
 

@@ -30,7 +30,7 @@
 - ⌨️ **键盘快捷键** — Ctrl+F 搜索、F5 刷新、Ctrl+A 全选、灯箱全套
 
 ### 文件管理 & 移动端
-- 🗑️ **删除到回收站** — 右键 / 灯箱 / 多选三入口删除图片与视频，删除前二次确认，文件移入系统回收站（可恢复），并自动清理失效收藏
+- 🗑️ **删除到回收站** — 右键 / 灯箱 / 多选三入口删除图片与视频，删除前二次确认，文件移入系统回收站（可恢复），并自动清理失效收藏。网络盘/映射盘没有系统回收站，这类位置会再弹一次「永久删除、无法恢复」的确认后才删除
 - 🖼️ **刷新缩略图** — 手动强制重新生成某项缩略图，可修复损坏或过期的缩略图
 - ☝️ **长按菜单（移动端）** — 手机上长按图片/视频即弹出操作菜单，与桌面右键一致
 - ✅ **单击多选** — 网格/列表勾选框单击即可选中；桌面亦可用 Ctrl+A / Ctrl+点击
@@ -280,7 +280,7 @@ PicViewer/
 │   │   ├── browse.js          # 目录浏览 + 递归浏览
 │   │   ├── image.js           # 图片/视频流 + 缩略图
 │   │   ├── download.js        # 批量下载 ZIP
-│   │   ├── delete.js          # 删除文件（移入回收站）
+│   │   ├── delete.js          # 删除文件（移入回收站；网络盘回退为永久删除）
 │   │   ├── ignored.js         # 忽略文件夹
 │   │   ├── search.js          # 全量搜索
 │   │   └── actions.js         # 收藏/旋转/资源管理器
@@ -331,7 +331,7 @@ PicViewer/
 | `GET` | `/api/image/thumbnail?path=&size=&fit=&refresh=1` | 缩略图（`refresh=1` 强制重新生成） |
 | `GET` | `/api/download?paths=` | 批量 ZIP 下载 |
 | `POST` | `/api/download` | 批量 ZIP 下载（POST 大列表） |
-| `POST` | `/api/delete` | 删除文件（移入系统回收站）body `{ paths: [] }` |
+| `POST` | `/api/delete` | 删除文件（移入系统回收站）body `{ paths: [], permanent?: boolean }`；不支持回收站的位置在响应 `needsPermanent` 中返回，确认后需带 `permanent: true` 重发 |
 | `GET` | `/api/ignored` | 忽略文件夹列表 |
 | `POST` | `/api/ignored` | 添加忽略 |
 | `DELETE` | `/api/ignored/:id` | 移除忽略 |

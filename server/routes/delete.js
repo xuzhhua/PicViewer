@@ -11,10 +11,15 @@ const MAX_FILES = 200;
 const FAV_FILE = path.join(__dirname, '..', 'data', 'favorites.json');
 
 // Delete files by moving them to the system recycle bin (recoverable).
-// POST /api/delete  body: { paths: [absolutePath, ...] }
+// POST /api/delete  body: { paths: [absolutePath, ...], permanent?: boolean }
+//
+// Network/mapped locations have no Recycle Bin on Windows, so trash() cannot
+// handle them. Those paths come back in `needsPermanent` instead of failing, and
+// the client asks for an explicit confirmation before re-requesting them with
+// `permanent: true` (irreversible fs.unlink).
 router.post('/', async (req, res) => {
   try {
-    const { paths } = req.body || {};
+    const { paths, permanent = false } = req.body || {};
     if (!Array.isArray(paths) || paths.length === 0) {
       return res.status(400).json({ error: 'paths is required' });
     }
@@ -45,19 +50,43 @@ router.post('/', async (req, res) => {
 
     const deleted = [];
     const failed = [];
+    // Files that exist but cannot be recycled; the client must confirm a
+    // permanent delete before we touch them again.
+    const needsPermanent = [];
     for (const rawPath of paths) {
       const filePath = path.normalize(rawPath);
+
+      let stat;
       try {
-        const stat = await fs.stat(filePath);
-        if (!stat.isFile()) {
-          failed.push({ path: rawPath, message: 'Not a file' });
-          continue;
+        stat = await fs.stat(filePath);
+      } catch (e) {
+        const message = e.code === 'ENOENT' ? 'File not found' : (e.message || 'Failed to access file');
+        failed.push({ path: rawPath, message });
+        continue;
+      }
+      if (!stat.isFile()) {
+        failed.push({ path: rawPath, message: 'Not a file' });
+        continue;
+      }
+
+      // Permanent delete — only reached after the user explicitly confirmed that
+      // the file cannot be recovered from the Recycle Bin.
+      if (permanent) {
+        try {
+          await fs.unlink(filePath);
+          deleted.push(rawPath);
+        } catch (e) {
+          failed.push({ path: rawPath, message: e.message || 'Failed to delete file' });
         }
+        continue;
+      }
+
+      try {
         await trash(filePath);
         deleted.push(rawPath);
       } catch (e) {
-        const message = e.code === 'ENOENT' ? 'File not found' : (e.message || 'Failed to move to recycle bin');
-        failed.push({ path: rawPath, message });
+        // trash() only throws here because the location is not recyclable.
+        needsPermanent.push(rawPath);
       }
     }
 
@@ -66,7 +95,7 @@ router.post('/', async (req, res) => {
       try { cleanupFavorites(deleted); } catch (_) { /* ignore */ }
     }
 
-    res.json({ deleted, failed });
+    res.json({ deleted, failed, needsPermanent });
   } catch (err) {
     console.error('Delete error:', err);
     res.status(500).json({ error: err.message });

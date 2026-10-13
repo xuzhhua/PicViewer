@@ -7,6 +7,13 @@ const sharp = require('sharp');
 const { readData } = require('../data/store');
 const dicom = require('./dicom');
 
+// libvips' operation cache keeps an open handle to every source file it reads
+// until the process exits. That leaves any file we generate a thumbnail for
+// undeletable (EBUSY) — most noticeably on SMB/network drives, where the handle
+// is held for the whole session. Thumbnails are cached on disk anyway, so the
+// operation cache buys us nothing; disabling it also keeps memory flat.
+sharp.cache(false);
+
 const CACHE_DIR = path.join(__dirname, '..', 'cache', 'thumbnails');
 const TRANSCODE_CACHE_DIR = path.join(__dirname, '..', 'cache', 'transcodes');
 

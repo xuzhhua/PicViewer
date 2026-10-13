@@ -219,19 +219,22 @@ export default function useApi() {
     }
   }, [fetchIgnored]);
 
-  // Move files to the system recycle bin (recoverable delete)
-  const deleteFiles = useCallback(async (paths) => {
+  // Move files to the system recycle bin (recoverable delete).
+  // Pass { permanent: true } to irreversibly delete paths the caller returns in
+  // `needsPermanent` (network/mapped locations have no Recycle Bin).
+  const deleteFiles = useCallback(async (paths, { permanent = false } = {}) => {
     try {
       const res = await fetch('/api/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paths })
+        body: JSON.stringify({ paths, permanent })
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || '删除失败');
       }
-      return await res.json(); // { deleted: [paths], failed: [{ path, message }] }
+      // { deleted: [paths], failed: [{ path, message }], needsPermanent: [paths] }
+      return await res.json();
     } catch (e) {
       setError(e.message);
       return null;
