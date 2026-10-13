@@ -26,15 +26,11 @@
     "files": [
       "electron-main.js",
       "server/**/*",
+      "!server/cache/**",
+      "!server/data/*.json",
       "client/dist/**/*",
       "client/public/icons/icon-*.png",
       "node_modules/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "server/config.json",
-        "to": "server/config.json"
-      }
     ],
     "win": {
       "target": [

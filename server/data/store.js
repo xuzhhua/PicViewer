@@ -1,16 +1,17 @@
-const path = require('path');
 const fs = require('fs');
+const { DATA_DIR, FOLDERS_FILE, IGNORED_FILE, ensureDir } = require('../paths');
 
-const DATA_FILE = path.join(__dirname, '..', 'data', 'folders.json');
-const IGNORED_FILE = path.join(__dirname, '..', 'data', 'ignored_folders.json');
+// The directory must exist before the first write — in a packaged app it lives
+// outside app.asar and is created on demand.
+ensureDir(DATA_DIR);
 
 function readData() {
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2));
+    if (!fs.existsSync(FOLDERS_FILE)) {
+      fs.writeFileSync(FOLDERS_FILE, JSON.stringify([], null, 2));
       return [];
     }
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    return JSON.parse(fs.readFileSync(FOLDERS_FILE, 'utf-8'));
   } catch (e) {
     console.error('Error reading folders.json:', e.message);
     return [];
@@ -18,9 +19,9 @@ function readData() {
 }
 
 function writeData(data) {
-  const tmpFile = DATA_FILE + '.tmp';
+  const tmpFile = FOLDERS_FILE + '.tmp';
   fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
-  fs.renameSync(tmpFile, DATA_FILE);
+  fs.renameSync(tmpFile, FOLDERS_FILE);
 }
 
 // --- Ignored folders ---

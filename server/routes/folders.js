@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { readData, writeData } = require('../data/store');
+const cache = require('../services/cache');
 
 // Open native folder picker and return selected path
 router.post('/pick', (req, res) => {
@@ -87,6 +88,8 @@ router.delete('/:id', (req, res) => {
   }
 
   writeData(folders);
+  // The removed root's cached thumbnails/transcodes are now orphaned
+  cache.scheduleSweepSoon();
   res.json({ success: true });
 });
 

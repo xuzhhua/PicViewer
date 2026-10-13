@@ -3,8 +3,9 @@ const router = express.Router();
 const { readData, writeData, readIgnored } = require('../data/store');
 const fs = require('fs').promises;
 const path = require('path');
+const { FAVORITES_FILE } = require('../paths');
 
-const FAV_FILE = path.join(__dirname, '..', 'data', 'favorites.json');
+const FAV_FILE = FAVORITES_FILE;
 
 function readFavorites() {
   try {

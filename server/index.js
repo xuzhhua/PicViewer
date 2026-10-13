@@ -11,19 +11,16 @@ const ignoredRouter = require('./routes/ignored');
 const searchRouter = require('./routes/search');
 const actionsRouter = require('./routes/actions');
 const deleteRouter = require('./routes/delete');
+const cache = require('./services/cache');
+const { readConfig } = require('./paths');
 
 const app = express();
 
 // Read port from config file (env var > config > default)
 function getPort() {
   if (process.env.PORT) return parseInt(process.env.PORT, 10);
-  try {
-    const configPath = path.join(__dirname, 'config.json');
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      if (config.port) return config.port;
-    }
-  } catch (e) { /* ignore config parse error */ }
+  const config = readConfig();
+  if (config.port) return config.port;
   return 3456;
 }
 
@@ -40,6 +37,9 @@ app.use('/api/ignored', ignoredRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/actions', actionsRouter);
 app.use('/api/delete', deleteRouter);
+
+// Reclaim orphaned/stale cache in the background — never block startup on it.
+cache.init().catch((e) => console.error('[Cache] init failed:', e.message));
 
 // Serve React build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

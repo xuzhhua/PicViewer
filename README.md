@@ -33,6 +33,7 @@
 - 🗑️ **删除到回收站** — 右键 / 灯箱 / 多选三入口删除图片与视频，删除前二次确认，文件移入系统回收站（可恢复），并自动清理失效收藏。网络盘/映射盘没有系统回收站，这类位置会再弹一次「永久删除、无法恢复」的确认后才删除
 - 🖼️ **刷新缩略图** — 手动强制重新生成某项缩略图，可修复损坏或过期的缩略图
 - ☝️ **长按菜单（移动端）** — 手机上长按图片/视频即弹出操作菜单，与桌面右键一致
+- 🧹 **缓存自动管理** — 缩略图/转码缓存有容量上限（LRU 淘汰），启动时清理孤儿缓存，删除文件时同步清除其缓存
 - ✅ **单击多选** — 网格/列表勾选框单击即可选中；桌面亦可用 Ctrl+A / Ctrl+点击
 - 📱 **移动端精简** — 手机端自动隐藏桌面专属操作：批量下载、在文件管理器中打开、复制路径/图片、快捷键提示
 
@@ -156,6 +157,13 @@ npm run electron:dist:linux  # Linux   → dist-electron/PicViewer-x.x.x.AppImag
 
 > 打包需在目标平台执行（Windows 上打 Windows 包，macOS 上打 macOS 包）。
 
+> 安装包只包含代码与构建产物：`server/cache/`（缩略图/转码缓存，可能达数 GB）和 `server/data/*.json`（各用户自己的根目录/收藏/忽略列表）都会被排除。这些文件在首次运行时自动生成，因此换机器/重装不会带走旧配置。
+
+> 打包版把可变数据放在 asar 之外的可写目录（`app.getPath('userData')`，Windows 上是 `%APPDATA%\PicViewer`）：
+> `cache/`（缩略图与转码）、`data/`（根目录/收藏/忽略列表）、`config.json`（首次运行从内置默认复制一份，之后可直接编辑）。
+> 这是必要的：安装包内的 `app.asar` 是**只读**的，写在那里会导致缩略图无法缓存、无法添加根文件夹。
+> 从源码运行（`npm start` / `start.bat`）时这些数据仍留在 `server/` 下，行为不变；可用环境变量 `PICVIEWER_DATA_DIR` 手动指定位置。
+
 ### 架构
 
 ```
@@ -227,8 +235,19 @@ npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 { "port": 12345 }
 ```
 
+> 打包版（Electron）读取的是 `%APPDATA%\PicViewer\config.json`（首次运行自动从内置默认复制，可直接编辑）；源码运行读 `server/config.json`。
+
 ### 根文件夹
 网页界面管理（侧边栏 `+`），数据保存在 `server/data/folders.json`。
+
+### 缓存上限
+缩略图与视频转码缓存在 `server/cache/`，默认上限 1024 MB / 2048 MB，超出后按最近最少使用淘汰：
+
+```json
+{ "port": 12345, "cache": { "thumbnailMaxMB": 1024, "transcodeMaxMB": 2048 } }
+```
+
+服务启动时会自动清理孤儿缓存（源文件已删除/改名/移动，或根文件夹已移除），之后每 6 小时再检查一次。
 
 三种添加方式：✏️ 手动输入 / 📁 系统选择器 / 🖱️ 拖拽
 
@@ -274,7 +293,8 @@ PicViewer/
 ├── electron-main.js          # Electron 桌面客户端主进程
 ├── server/
 │   ├── index.js               # Express 入口（支持 import 和 standalone）
-│   ├── config.json            # 端口配置
+│   ├── paths.js               # 可变数据位置（缓存/数据/配置；支持 PICVIEWER_DATA_DIR）
+│   ├── config.json            # 端口 + 缓存上限配置
 │   ├── routes/
 │   │   ├── folders.js         # 文件夹 CRUD + 系统选择器
 │   │   ├── browse.js          # 目录浏览 + 递归浏览
@@ -286,7 +306,8 @@ PicViewer/
 │   │   └── actions.js         # 收藏/旋转/资源管理器
 │   ├── services/
 │   │   ├── browse.js          # 文件系统扫描 + 安全校验
-│   │   └── image.js           # sharp 缩略图 + ffmpeg 转码
+│   │   ├── image.js           # sharp 缩略图 + ffmpeg 转码
+│   │   └── cache.js           # 缓存命名/登记/孤儿清理/容量上限（LRU）
 │   └── data/
 │       ├── store.js           # JSON 持久化（原子写入）
 │       ├── folders.json       # 根目录配置

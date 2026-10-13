@@ -5,10 +5,12 @@ const fsSync = require('fs');
 const path = require('path');
 const trash = require('trash');
 const { readData } = require('../data/store');
+const cache = require('../services/cache');
+const { FAVORITES_FILE } = require('../paths');
 
 // Max files per delete request (aligns with download MAX_FILES)
 const MAX_FILES = 200;
-const FAV_FILE = path.join(__dirname, '..', 'data', 'favorites.json');
+const FAV_FILE = FAVORITES_FILE;
 
 // Delete files by moving them to the system recycle bin (recoverable).
 // POST /api/delete  body: { paths: [absolutePath, ...], permanent?: boolean }
@@ -90,9 +92,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Best-effort: drop dead favorites for successfully deleted paths
+    // Best-effort: drop dead favorites and cached artifacts for deleted paths
     if (deleted.length > 0) {
       try { cleanupFavorites(deleted); } catch (_) { /* ignore */ }
+      try { await cache.removeSourcesCache(deleted); } catch (_) { /* ignore */ }
     }
 
     res.json({ deleted, failed, needsPermanent });

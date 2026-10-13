@@ -146,6 +146,16 @@ function setupCloseToTray() {
 
 // === Application lifecycle ===
 app.whenReady().then(async () => {
+  // Mutable state (thumbnail/transcode cache, folder list, favorites, config)
+  // must live in a writable directory. Packaged code is inside app.asar, which
+  // is read-only — writing there silently degrades thumbnails to placeholders
+  // and makes "add folder" fail. Must be set BEFORE the server is required,
+  // because server/paths.js resolves these locations at module load.
+  // In dev we leave it unset so `electron:dev` shares state with `npm start`.
+  if (app.isPackaged) {
+    process.env.PICVIEWER_DATA_DIR = app.getPath('userData');
+  }
+
   // Build the React app first (in production) or trust dev mode
   const distPath = path.join(__dirname, 'client', 'dist');
   const fs = require('fs');

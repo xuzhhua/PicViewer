@@ -47,6 +47,24 @@
 - CSS `content-visibility: auto` 虚拟滚动
 - 递归浏览 fast 模式跳过 sharp/ffprobe
 
+### 打包（electron-builder）
+- `files` 用 `server/**/*` 会连带把**运行时产物**打进安装包，必须显式排除：
+  - `!server/cache/**` —— 缩略图/转码缓存，曾达 4.3 GB
+  - `!server/data/*.json` —— 各用户自己的根目录/收藏/忽略列表（`folders.json` 里是开发者本机的私有路径，`ignored_folders.json` 甚至带着 `X:\xuzhhua\Private\shoujo\_SYNCAPP`）。这些文件由 `store.js` 在首次读取时自动创建为 `[]`，因此排除后不影响启动
+- electron-builder 会**自动剔除 devDependencies**（electron/electron-builder 等），`node_modules/**/*` 其实是默认行为，写不写都一样
+- **可变数据必须放在 asar 外**（`server/paths.js`）。electron-builder 默认 `asar: true`，而代码内 `__dirname` 指向 app.asar 内部，**asar 只读** —— 若把 `cache/`、`data/`、`config.json` 写在那里，打包版会表现为缩略图全部退化成占位图、添加根文件夹返回 500。因此 `electron-main.js` 在 require server **之前**把 `PICVIEWER_DATA_DIR` 指向 `app.getPath('userData')`（`server/paths.js` 在模块加载时解析该变量，所以顺序不能颠倒）。未设该变量时 `STATE_ROOT` 回落到 `server/`，从源码运行（`npm start`）行为完全不变
+- 打包版首次运行会把 asar 里的 `server/config.json` 复制一份到 userData 作为可编辑的实时配置（asar 里那份用户改不了），这也是 `extraResources` 可以删掉的原因 —— 它当初拷到 `resources/server/config.json` 的位置根本没有任何代码读取
+- **构建环境的坑**：electron-builder 从 GitHub 拉 Electron 二进制（约 137 MB）与 nsis/winCodeSign 等工具，在受限网络下 `got` 会以 `Timeout awaiting 'request' for 600000ms` 失败且**在 %TEMP% 留下 0 字节的 `electron-download-*` 暂存目录**（据此可快速判断是卡在下载而非代码问题）。绕过办法：`ELECTRON_BUILDER_BINARIES_MIRROR` 指镜像，并用 `--config.electronDist=<已解压的 Electron 目录>` 完全跳过 Electron 下载（实测 GitHub 454 KB/s vs 镜像 21 MB/s）。注意 `ELECTRON_OVERRIDE_DIST_PATH` 对该版本无效，必须用 `electronDist`
+
+### 缓存管理
+- **缓存命名必须带「源路径指纹」前缀** —— `cache/thumbnails/<md5(源路径)>__<size>__<fit>.jpg`、`cache/transcodes/<md5(源路径)>__<mtime>.mp4`。md5 不可逆，旧方案 `md5(路径::尺寸::fit)` 把三者混进一个哈希，导致**无法从缓存文件反推源文件**，因此既做不了「删文件时清缓存」也做不了孤儿清理。前缀化后按前缀即可批量处理
+- **`cache/sources.jsonl` 是唯一的反查依据**：追加式登记 `{h: md5(路径), p: 路径}`，启动时压缩重写。孤儿清理靠它逐个 `existsSync` 判断，避免为查孤儿而遍历所有根目录（SMB 上极慢）。进程被强杀最多丢掉尾部登记，代价只是那次缓存文件被当作不可达回收
+- **孤儿/不可达判定**：①登记中源文件不存在或已不在任何根目录下 → 删除该前缀全部文件；②文件名不匹配新命名（旧方案遗留）或前缀不在登记中 → 一律回收（旧命名永远无法再命中，属纯占位）
+- **容量上限按目录独立**：缩略图默认 1024 MB、转码默认 2048 MB（`config.json` 的 `cache.thumbnailMaxMB` / `cache.transcodeMaxMB`）。转码单文件可达数百 MB，与缩略图共用额度会让一次淘汰误删昂贵的转码结果
+- **淘汰按「最近最少使用」**，用 `max(atime, mtime)`；Windows 常关闭 atime 更新，此时退化为「最久未写入」，仍是正确的淘汰端。删除 `.jpg` 时连带删除同名 `.broken` 标记，避免标记与文件状态不一致
+- **淘汰需有 60 秒保护期**：刚写入的缓存可能仍在向客户端流式传输，立即删除会打断响应
+- 定期维护（6 小时）用 `unref()` 的定时器，不阻止进程退出；`init()` 不阻塞启动
+
 ### 安全加固
 - `isPathAllowed()` 必须检查 `normalized === rootNorm || normalized.startsWith(rootNorm + path.sep)`
 - 服务端 `explorer /select,` 而非浏览器 `file://` 协议

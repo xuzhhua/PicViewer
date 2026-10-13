@@ -1,11 +1,11 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { spawn } = require('child_process');
 const sharp = require('sharp');
 const { readData } = require('../data/store');
 const dicom = require('./dicom');
+const cache = require('./cache');
 
 // libvips' operation cache keeps an open handle to every source file it reads
 // until the process exits. That leaves any file we generate a thumbnail for
@@ -13,17 +13,6 @@ const dicom = require('./dicom');
 // is held for the whole session. Thumbnails are cached on disk anyway, so the
 // operation cache buys us nothing; disabling it also keeps memory flat.
 sharp.cache(false);
-
-const CACHE_DIR = path.join(__dirname, '..', 'cache', 'thumbnails');
-const TRANSCODE_CACHE_DIR = path.join(__dirname, '..', 'cache', 'transcodes');
-
-// Ensure cache directories exist
-if (!fsSync.existsSync(CACHE_DIR)) {
-  fsSync.mkdirSync(CACHE_DIR, { recursive: true });
-}
-if (!fsSync.existsSync(TRANSCODE_CACHE_DIR)) {
-  fsSync.mkdirSync(TRANSCODE_CACHE_DIR, { recursive: true });
-}
 
 // Video formats that browsers can play natively (no transcoding needed)
 const BROWSER_NATIVE_VIDEO = new Set(['.mp4', '.webm', '.m4v']);
@@ -45,12 +34,10 @@ function isPathAllowed(targetPath) {
   });
 }
 
-// Generate a safe cache key from path + size + fit
+// Cache path for a thumbnail. The md5(source path) prefix is what lets the cache
+// service find (and drop) every artifact of a source file by prefix — see cache.js.
 function getCacheKey(filePath, size, fit = 'cover') {
-  const hash = crypto.createHash('md5')
-    .update(`${filePath}::${size}::${fit}`)
-    .digest('hex');
-  return path.join(CACHE_DIR, hash + '.jpg');
+  return cache.thumbnailFile(filePath, size, fit);
 }
 
 // Transcode browser-incompatible video to MP4 (H.264 + AAC) on-the-fly
@@ -71,10 +58,8 @@ async function transcodeVideo(filePath, res) {
     throw Object.assign(new Error('File not found'), { status: 404 });
   }
 
-  const cacheHash = crypto.createHash('md5')
-    .update(`${filePath}::${stat.mtimeMs}`)
-    .digest('hex');
-  const cachePath = path.join(TRANSCODE_CACHE_DIR, cacheHash + '.mp4');
+  const cachePath = cache.transcodeFile(filePath, stat.mtimeMs);
+  cache.registerSource(filePath);
 
   // If cached version exists, serve it
   try {
@@ -379,6 +364,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   }
 
   await fs.access(filePath, fs.constants.R_OK);
+  cache.registerSource(filePath);
 
   // Force refresh: drop the cached thumbnail (+broken marker) for this size/fit
   // so it is regenerated on this request (used by the “刷新缩略图” context action)
