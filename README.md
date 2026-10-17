@@ -232,7 +232,7 @@ npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 ### 端口
 编辑 `server/config.json`：
 ```json
-{ "port": 12345 }
+{ "port": 18093 }
 ```
 
 > 打包版（Electron）读取的是 `%APPDATA%\PicViewer\config.json`（首次运行自动从内置默认复制，可直接编辑）；源码运行读 `server/config.json`。
@@ -244,7 +244,7 @@ npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 缩略图、预览图与视频转码缓存在 `server/cache/`，默认上限 1024 MB / 2048 MB / 2048 MB，超出后按最近最少使用淘汰：
 
 ```json
-{ "port": 12345, "cache": { "thumbnailMaxMB": 1024, "transcodeMaxMB": 2048, "previewMaxMB": 2048 } }
+{ "port": 18093, "cache": { "thumbnailMaxMB": 1024, "transcodeMaxMB": 2048, "previewMaxMB": 2048 } }
 ```
 
 服务启动时会自动清理孤儿缓存（源文件已删除/改名/移动，或根文件夹已移除），之后每 6 小时再检查一次。
