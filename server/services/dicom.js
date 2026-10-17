@@ -3,6 +3,13 @@
 const fs = require('fs');
 const sharp = require('sharp');
 
+// —— 资源上限 ——
+// 以前 parseDicom 直接 `Buffer.alloc(rows * columns * 4)`：DICOM 头里的
+// Rows/Columns 是文件内容的一部分，一个 65535×65535 的假头就能让服务申请
+// 17GB 内存（Buffer.alloc 会真的分配并清零），Node 直接 OOM 崩掉。
+const MAX_DICOM_PIXELS = 25_000_000; // 约 5000×5000，医疗影像远到不了
+const MAX_DICOM_FILE_BYTES = 512 * 1024 * 1024; // 512MB
+
 let dicomParser;
 try {
   dicomParser = require('dicom-parser');
@@ -26,6 +33,11 @@ function isDicomAvailable() {
 async function parseDicom(filePath) {
   if (!isDicomAvailable()) {
     throw new Error('dicom-parser not installed');
+  }
+
+  const stat = await fs.promises.stat(filePath);
+  if (stat.size > MAX_DICOM_FILE_BYTES) {
+    throw new Error(`DICOM 文件过大: ${(stat.size / 1048576).toFixed(1)}MB（上限 512MB）`);
   }
 
   const buffer = await fs.promises.readFile(filePath);
@@ -54,10 +66,26 @@ async function parseDicom(filePath) {
     throw new Error('DICOM missing dimensions');
   }
 
+  // 尺寸上限：Rows/Columns 来自文件内容，不能直接拿来算缓冲区大小
+  const totalPixels = rows * columns;
+  if (!Number.isInteger(totalPixels) || totalPixels <= 0) {
+    throw new Error(`DICOM 尺寸非法: ${columns}×${rows}`);
+  }
+  if (totalPixels > MAX_DICOM_PIXELS) {
+    throw new Error(`DICOM 尺寸超限: ${columns}×${rows}（上限 ${MAX_DICOM_PIXELS} 像素）`);
+  }
+
   // Get pixel data
   const pixelData = dataSet.byteArray('x7FE00010');
   if (!pixelData || pixelData.length === 0) {
     throw new Error('DICOM has no pixel data (may be compressed)');
+  }
+
+  // 像素数据长度也要跟尺寸对得上，否则读取循环会越界拿到 undefined
+  const bytesPerSample = Math.ceil(bitsAllocated / 8);
+  const expectedBytes = totalPixels * bytesPerSample * Math.max(1, samplesPerPixel);
+  if (pixelData.length < expectedBytes) {
+    throw new Error(`DICOM 像素数据不完整: ${pixelData.length} < ${expectedBytes}`);
   }
 
   // Extract and normalize pixel data to 8-bit RGBA
@@ -215,6 +243,8 @@ async function getDicomMetadata(filePath) {
   if (!isDicomAvailable()) return null;
 
   try {
+    const stat = await fs.promises.stat(filePath);
+    if (stat.size > MAX_DICOM_FILE_BYTES) return null;
     const buffer = await fs.promises.readFile(filePath);
     const byteArray = new Uint8Array(buffer);
     const dataSet = dicomParser.parseDicom(byteArray);

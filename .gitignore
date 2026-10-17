@@ -6,7 +6,15 @@ client/dist/
 dist-electron/
 
 # Server data & cache
+# 这些都是**用户私有数据**，绝不能进仓库：
+#  - folders.json / ignored_folders.json / favorites.json 里有用户真实的磁盘路径
+#    （曾经 ignored_folders.json 就被提交过，里面是 X:\...\Private\... 这种路径）
+#  - security.json 是局域网访问令牌
 server/data/folders.json
+server/data/ignored_folders.json
+server/data/favorites.json
+server/data/security.json
+server/data/*.tmp
 server/cache/
 
 # Config (user-specific)

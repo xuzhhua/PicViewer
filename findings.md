@@ -80,6 +80,48 @@
 - `isPathAllowed()` 必须检查 `normalized === rootNorm || normalized.startsWith(rootNorm + path.sep)`
 - 服务端 `explorer /select,` 而非浏览器 `file://` 协议
 
+#### 路径白名单：只能有**一个**判定入口
+- 这条规则以前在 `browse.js` / `image.js` 各有一份拷贝，`download.js` / `delete.js` 又各写了一遍
+  内联版。每加一个路由都要记得再抄一次，抄漏就是洞 —— 实测漏了
+  `/api/actions/rotate`、`/api/actions/explorer`、`/api/actions/folder-preview` 三条
+  （任意文件读取 + 命令注入）。现在全部走 `server/security/pathGuard.js`。
+- 判定细节：先 `path.normalize`，再去尾部反斜杠（`D:\Pics\` ≡ `D:\Pics`），
+  Windows 下折叠大小写，子树判定必须带 `path.sep` 边界（否则 `D:\Pics` 会匹配 `D:\Pics2`）。
+- 「添加根目录」也必须校验：允许任意路径当根目录 = 白名单形同虚设（一条 POST 就能把
+  `C:\` 加进来）。`validateRootCandidate` 拒绝磁盘根、系统目录、相对路径、不存在的路径。
+
+#### 命令执行
+- **绝不用 `exec` 拼字符串**。`exec(\`explorer /select,"${path}"\`)` 里路径完全可控，
+  一个 `" & calc & "` 就是任意命令执行。改成 `spawn('explorer.exe', [...], {stdio:'ignore'})`
+  不经 shell。注意 explorer 需要把 `/select,` 和路径放在**同一个参数**里
+  （`['/select,' + p]`），拆成两个参数时带空格的路径会失效。
+
+#### 监听地址与令牌
+- 默认 `127.0.0.1`；开 `lanAccess` 才绑 `0.0.0.0`，并且此时**强制**开令牌 ——
+  不允许出现「监听公网 + 无鉴权」的组合。
+- 图片是普通 `<img>` 加载的，加不了自定义请求头，所以令牌必须能走 Cookie；
+  用 `?token=` 打开一次页面 → 服务端种 HttpOnly Cookie → 之后所有请求自动带上。
+- 本机判定要**同时**看「连接来源地址是回环」和「Host 是 localhost/127.0.0.1」：
+  只看来源地址会让「同机反向代理转发公网流量」被当成内网放行。
+- `Access-Control-Allow-Origin: *` + 无鉴权 + `0.0.0.0` = 用户浏览器里任意恶意页面
+  都能对 `127.0.0.1:18093/api/delete` 发 JSON POST 删文件（JSON 触发预检，`*` 放行预检）。
+  CORS 必须回显同源/本机来源，不能通配。
+
+#### 其它崩溃/DoS 面
+- `Buffer.alloc(rows * columns * 4)` 里 rows/columns 来自 DICOM 文件内容：假头
+  `65535×65535` = 17GB 分配。任何「用文件内容算缓冲区大小」的地方都必须先夹上限。
+- `parseInt(req.query.size) || 256` 直接进 sharp：`size=20000` ≈ 1.6GB 位图。图片参数必须白名单+夹紧。
+- 所有 `readStream.pipe(res)` 都要用 `stream.pipeline` 或显式 error 监听：
+  否则客户端中途断开 = 未捕获异常（Electron 里就是主进程退出）。
+  archiver 同样必须监听 `error`，且此时 headers 往往已发出，只能 `res.destroy()`。
+- Range 解析不能手写 `split('-') + parseInt`：`bytes=-500`（后缀区间）会得到
+  `start=NaN` → `Content-Length: NaN` → Node 抛错 500。走 `server/utils/range.js` 的纯函数 + 单测。
+
+#### 私有数据不能进仓库
+- `server/data/*.json` 里是用户真实磁盘路径、收藏、以及局域网令牌。`ignored_folders.json`
+  曾被提交并推送（内容是 `X:\...\Private\...`）。`.gitignore` 必须覆盖全部 data 文件；
+  已跟踪的要 `git rm --cached`（注意：这不清理历史，真要清得 rewrite history）。
+
 ### 移动客户端
 - **PWA**: 首选方案，零配置即可安装到手机主屏幕。manifest.json + Service Worker 实现离线缓存
 - **Capacitor**: 用于编译原生 APK/IPA。需要 Android Studio（Android）或 Xcode + macOS（iOS）

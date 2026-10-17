@@ -241,15 +241,35 @@ npm run dev      # 后端 + 前端并行启动，Vite 自动代理
 网页界面管理（侧边栏 `+`），数据保存在 `server/data/folders.json`。
 
 ### 缓存上限
-缩略图与视频转码缓存在 `server/cache/`，默认上限 1024 MB / 2048 MB，超出后按最近最少使用淘汰：
+缩略图、预览图与视频转码缓存在 `server/cache/`，默认上限 1024 MB / 2048 MB / 2048 MB，超出后按最近最少使用淘汰：
 
 ```json
-{ "port": 12345, "cache": { "thumbnailMaxMB": 1024, "transcodeMaxMB": 2048 } }
+{ "port": 12345, "cache": { "thumbnailMaxMB": 1024, "transcodeMaxMB": 2048, "previewMaxMB": 2048 } }
 ```
 
 服务启动时会自动清理孤儿缓存（源文件已删除/改名/移动，或根文件夹已移除），之后每 6 小时再检查一次。
 
 三种添加方式：✏️ 手动输入 / 📁 系统选择器 / 🖱️ 拖拽
+
+### 局域网 / 远程访问（默认关闭）
+出于安全考虑，**服务默认只监听 `127.0.0.1`**，只有本机能访问。要用手机/平板/其它电脑访问，在 `server/config.json` 里打开：
+
+```json
+{ "port": 18093, "lanAccess": true }
+```
+
+重启后会监听 `0.0.0.0`，并在启动日志里打印带令牌的地址：
+
+```
+LAN access:  http://192.168.1.5:18093/?token=xxxxxxxx
+局域网访问已开启：非本机请求需要上面地址里的 token（已保存，重启不变）。
+```
+
+用那个地址（含 `?token=`）在手机浏览器打开一次即可，服务端会种一个 30 天的 HttpOnly Cookie，之后直接访问 `http://192.168.1.5:18093` 就行。令牌保存在 `server/data/security.json`，重启不变；想换令牌就删掉这个文件再重启。
+
+- 也可以直接用请求头 `X-PicViewer-Token: <token>`（curl / 脚本）。
+- 环境变量覆盖：`PICVIEWER_LAN=1` 开、`PICVIEWER_LAN=0` 关、`PICVIEWER_HOST` 指定监听地址。
+- **公网暴露（端口映射/内网穿透）前请先加一层真正的鉴权**（反向代理 + 账号密码 / WireGuard 等）：令牌只是防止同网段误访问，不等于账号体系。
 
 ### 忽略文件夹
 侧边栏底部 `🚫 已忽略` 区域 → 拖拽或手动添加路径，浏览/搜索自动跳过。
@@ -348,8 +368,9 @@ PicViewer/
 | `PUT` | `/api/folders/reorder` | 拖拽排序 |
 | `GET` | `/api/browse?path=` | 浏览目录 |
 | `GET` | `/api/browse/recursive?path=&fast=1` | 递归浏览（fast 跳过元数据） |
-| `GET` | `/api/image/view?path=` | 流式传输原文件（支持 Range） |
-| `GET` | `/api/image/thumbnail?path=&size=&fit=&refresh=1` | 缩略图（`refresh=1` 强制重新生成） |
+| `GET` | `/api/image/view?path=` | 流式传输原文件（支持 Range，带 ETag） |
+| `GET` | `/api/image/thumbnail?path=&size=&fit=&refresh=1` | 缩略图（`refresh=1` 强制重新生成；`size` 夹紧到 16~2048） |
+| `GET` | `/api/image/preview?path=&w=` | 灯箱预览图（长边夹紧到 320~4096，默认 1920，落盘缓存） |
 | `GET` | `/api/download?paths=` | 批量 ZIP 下载 |
 | `POST` | `/api/download` | 批量 ZIP 下载（POST 大列表） |
 | `POST` | `/api/delete` | 删除文件（移入系统回收站）body `{ paths: [], permanent?: boolean }`；不支持回收站的位置在响应 `needsPermanent` 中返回，确认后需带 `permanent: true` 重发 |

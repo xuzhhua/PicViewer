@@ -1,6 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const imageService = require('../services/image');
+const { clampThumbSize, normalizeFit } = require('../utils/imageParams');
+const { sendError } = require('../utils/respond');
+
+/** base64url → 路径 */
+function decodePath(encodedPath) {
+  return Buffer.from(encodedPath, 'base64url').toString('utf-8');
+}
+
+/**
+ * 统一的错误映射。
+ * 注意 headers 可能已经发出去了（流式响应写到一半失败），sendError 会处理。
+ */
+function handleError(res, err, label) {
+  if (err.code === 'ENOENT') return sendError(res, 404, 'File not found');
+  if (err.status === 403 || err.code === 'EACCES' || err.code === 'EPERM') {
+    return sendError(res, 403, 'Permission denied');
+  }
+  console.error(`${label}:`, err);
+  return sendError(res, 500, err.message);
+}
 
 // Serve original image
 // GET /api/image/view?path=<base64 encoded path>
@@ -10,18 +30,9 @@ router.get('/view', async (req, res) => {
     if (!encodedPath) {
       return res.status(400).json({ error: 'Path is required' });
     }
-
-    const filePath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
-    await imageService.serveFile(filePath, res);
+    await imageService.serveFile(decodePath(encodedPath), res);
   } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    if (err.status === 403 || err.code === 'EACCES') {
-      return res.status(403).json({ error: 'Permission denied' });
-    }
-    console.error('Image serve error:', err);
-    res.status(500).json({ error: err.message });
+    handleError(res, err, 'Image serve error');
   }
 });
 
@@ -30,25 +41,18 @@ router.get('/view', async (req, res) => {
 router.get('/thumbnail', async (req, res) => {
   try {
     const encodedPath = req.query.path;
-    const size = parseInt(req.query.size) || 256;
-    const fit = req.query.fit || 'cover'; // 'cover' or 'inside'
-    const refresh = req.query.refresh === '1';
-
     if (!encodedPath) {
       return res.status(400).json({ error: 'Path is required' });
     }
+    // size/fit 必须夹紧：size=20000 会让 sharp 申请约 1.6GB 的位图，
+    // fit 是任意字符串时会原样传给 sharp。规则见 utils/imageParams.js。
+    const size = clampThumbSize(req.query.size);
+    const fit = normalizeFit(req.query.fit);
+    const refresh = req.query.refresh === '1';
 
-    const filePath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
-    await imageService.serveThumbnail(filePath, size, fit, res, { refresh });
+    await imageService.serveThumbnail(decodePath(encodedPath), size, fit, res, { refresh });
   } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    if (err.status === 403 || err.code === 'EACCES') {
-      return res.status(403).json({ error: 'Permission denied' });
-    }
-    console.error('Thumbnail error:', err);
-    res.status(500).json({ error: err.message });
+    handleError(res, err, 'Thumbnail error');
   }
 });
 
@@ -61,18 +65,9 @@ router.get('/preview', async (req, res) => {
     if (!encodedPath) {
       return res.status(400).json({ error: 'Path is required' });
     }
-
-    const filePath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
-    await imageService.servePreview(filePath, res, { w: req.query.w });
+    await imageService.servePreview(decodePath(encodedPath), res, { w: req.query.w });
   } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    if (err.status === 403 || err.code === 'EACCES') {
-      return res.status(403).json({ error: 'Permission denied' });
-    }
-    console.error('Preview serve error:', err);
-    res.status(500).json({ error: err.message });
+    handleError(res, err, 'Preview serve error');
   }
 });
 

@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const { readData, readIgnored } = require('../data/store');
 const { createLimiter } = require('../utils/limiter');
 const { createMetaCache } = require('../utils/metaCache');
+const { isPathAllowed, isIgnored } = require('../security/pathGuard');
 
 // 元数据读取（sharp / ffprobe）在目录扫描里是「每个文件一次」的重活。串行跑
 // 时，网络盘上 200 张图 = 几百次串行 SMB 往返，首屏要等几十秒。并发受限地跑
@@ -151,24 +152,7 @@ function ffprobe(filePath) {
 }
 
 // Check if path is within any allowed root folder
-function isPathAllowed(targetPath, rootFolders) {
-  if (rootFolders.length === 0) return false;
-  const normalized = path.normalize(targetPath);
-  return rootFolders.some(root => {
-    const rootNorm = path.normalize(root.path);
-    return normalized === rootNorm || normalized.startsWith(rootNorm + path.sep);
-  });
-}
-
-// Check if a path (or its parent chain) is in the ignored list
-function isIgnored(targetPath, ignoredList) {
-  if (!ignoredList || ignoredList.length === 0) return false;
-  const normalized = path.normalize(targetPath);
-  return ignoredList.some(entry => {
-    const ignoredNorm = path.normalize(entry.path);
-    return normalized === ignoredNorm || normalized.startsWith(ignoredNorm + path.sep);
-  });
-}
+// （判定逻辑统一在 security/pathGuard.js，两个服务各存一份拷贝正是漏检的根源）
 
 // If no root folders configured, return root folders info
 async function listDirectory(targetPath, options = {}) {

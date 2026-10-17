@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const archiver = require('archiver');
-const { readData } = require('../data/store');
+const { isPathAllowed } = require('../security/pathGuard');
+const { sendError } = require('../utils/respond');
 
 // Batch download selected files as ZIP
 // GET or POST /api/download?paths=<base64,csv> or POST body { paths: [...] }
@@ -38,22 +39,52 @@ async function handleDownload(req, res) {
     }
 
     // Security: verify all paths are within allowed folders
-    const rootFolders = readData();
     for (const filePath of paths) {
-      const normalized = path.normalize(filePath);
-      const allowed = rootFolders.some(root => {
-        const rootNorm = path.normalize(root.path);
-        return normalized === rootNorm || normalized.startsWith(rootNorm + path.sep);
-      });
-      if (!allowed) {
+      if (!isPathAllowed(filePath)) {
         return res.status(403).json({ error: `Path not allowed: ${filePath}` });
       }
+    }
+
+    // 总量上限：MAX_TOTAL_SIZE 以前定义了却从没检查过。网络盘上 200 张大图
+    // 打包进去就是几个 GB 的下载，既拖垮服务也几乎必然中断，不如提前拒绝。
+    const fsPromises = require('fs').promises;
+    let totalBytes = 0;
+    for (const filePath of paths) {
+      try {
+        const stat = await fsPromises.stat(filePath);
+        if (stat.isFile()) totalBytes += stat.size;
+      } catch (_) { /* 读不到的文件交给 archiver 跳过 */ }
+    }
+    if (totalBytes > MAX_TOTAL_SIZE) {
+      return res.status(413).json({
+        error: `所选文件总计 ${(totalBytes / 1073741824).toFixed(1)}GB，超过 ${MAX_TOTAL_SIZE / 1073741824}GB 上限，请分批下载`,
+      });
     }
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="picviewer-download.zip"');
 
     const archive = archiver('zip', { zlib: { level: 1 } });
+
+    // archiver 的错误必须接住：@archiver 在某个文件读失败时会 emit('error')，
+    // 没有监听器就是进程级 uncaughtException；而这时 headers 早已发出去了。
+    archive.on('error', (err) => {
+      console.error('[Download] archive error:', err.message);
+      try { archive.abort(); } catch (_) {}
+      if (res.headersSent || res.writableEnded) {
+        try { res.destroy(); } catch (_) {}
+      } else {
+        sendError(res, 500, err.message);
+      }
+    });
+
+    // 客户端取消下载（关页面/断网）→ 停止打包，别继续读网络盘
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        try { archive.abort(); } catch (_) {}
+      }
+    });
+
     archive.pipe(res);
 
     // Deduplicate filenames by adding parent folder prefix
@@ -81,9 +112,7 @@ async function handleDownload(req, res) {
     await archive.finalize();
   } catch (err) {
     console.error('Download error:', err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: err.message });
-    }
+    sendError(res, 500, err.message);
   }
 }
 

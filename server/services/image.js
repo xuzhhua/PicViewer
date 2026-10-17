@@ -2,12 +2,15 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { pipeline } = require('stream');
 const sharp = require('sharp');
-const { readData } = require('../data/store');
 const dicom = require('./dicom');
 const cache = require('./cache');
 const { createLimiter } = require('../utils/limiter');
 const { applyFreshness } = require('../utils/httpCache');
+const { isPathAllowed } = require('../security/pathGuard');
+const { parseRange } = require('../utils/range');
+const { clampThumbSize, normalizeFit } = require('../utils/imageParams');
 
 // libvips' operation cache keeps an open handle to every source file it reads
 // until the process exits. That leaves any file we generate a thumbnail for
@@ -75,13 +78,20 @@ const PREVIEW_CACHE_CONTROL = 'public, max-age=604800, must-revalidate';
 const PREVIEW_PASSTHROUGH = new Set(['.gif', '.svg']);
 
 // Check if path is within configured root folders
-function isPathAllowed(targetPath) {
-  const rootFolders = readData();
-  if (rootFolders.length === 0) return false;
-  const normalized = path.normalize(targetPath);
-  return rootFolders.some(root => {
-    const rootNorm = path.normalize(root.path);
-    return normalized === rootNorm || normalized.startsWith(rootNorm + path.sep);
+// （判定逻辑统一在 security/pathGuard.js，这里保留同名包装方便调用）
+
+/** 把只读流安全地接到响应上 */
+function streamToResponse(source, res, label) {
+  pipeline(source, res, (err) => {
+    if (!err) return;
+    // pipeline 已经负责销毁两端；这里只补日志（客户端主动断开不算错误）
+    const code = err.code || '';
+    if (code !== 'ERR_STREAM_PREMATURE_CLOSE' && code !== 'ECONNRESET') {
+      console.warn(`[Stream] ${label} 中断: ${err.message}`);
+    }
+    if (res.headersSent) {
+      try { res.destroy(); } catch (_) {}
+    }
   });
 }
 
@@ -274,27 +284,28 @@ async function serveFileDirect(filePath, res) {
   if (applyFreshness(res.req, res, stat, cacheControl)) return;
 
   // Handle Range requests (essential for video seeking)
-  const range = res.req?.headers?.range;
-  if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + 5 * 1024 * 1024, stat.size - 1);
-    const chunkSize = end - start + 1;
-
+  const range = parseRange(res.req && res.req.headers ? res.req.headers.range : '', stat.size);
+  if (range.type === 'unsatisfiable') {
+    // 起点超出文件长度：按 RFC 回 416，别回 206 + 负数 Content-Length
+    res.status(416);
+    res.setHeader('Content-Range', `bytes */${stat.size}`);
+    res.setHeader('Content-Length', 0);
+    res.setHeader('Cache-Control', cacheControl);
+    return res.end();
+  }
+  if (range.type === 'partial') {
+    const { start, end } = range;
     res.status(206);
     res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
-    res.setHeader('Content-Length', chunkSize);
+    res.setHeader('Content-Length', end - start + 1);
     res.setHeader('Cache-Control', cacheControl);
-
-    const stream = require('fs').createReadStream(filePath, { start, end });
-    stream.pipe(res);
-    return;
+    // pipeline 而不是 pipe：客户端中途断开（切视频/切图很常见）时 pipe 会把
+    // 错误留在源流上变成 uncaughtException，pipeline 会正确销毁两端。
+    return streamToResponse(fsSync.createReadStream(filePath, { start, end }), res, path.basename(filePath));
   }
 
   res.setHeader('Content-Length', stat.size);
-
-  const stream = require('fs').createReadStream(filePath);
-  stream.pipe(res);
+  return streamToResponse(fsSync.createReadStream(filePath), res, path.basename(filePath));
 }
 
 // Serve file — routes videos through transcoder if needed, DICOM through converter
@@ -375,7 +386,7 @@ async function servePreview(filePath, res, opts = {}) {
     if (cacheStat.mtime > fileStat.mtime) {
       res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Length', cacheStat.size);
-      return require('fs').createReadStream(cacheKey).pipe(res);
+      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
     }
   } catch (e) { /* cache miss */ }
 
@@ -409,8 +420,7 @@ async function serveVideoThumbnail(filePath, size, cacheKey, res, fileStat) {
       if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Content-Length', cacheStat.size);
-      const stream = require('fs').createReadStream(cacheKey);
-      return stream.pipe(res);
+      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
     }
   } catch (e) { /* cache miss */ }
 
@@ -503,13 +513,18 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
     throw Object.assign(new Error('Path not allowed'), { status: 403 });
   }
 
+  // 防御性夹紧：路由层（routes/image.js）已经夹过一次，但服务函数也可能被
+  // 别处直接调用 —— size 直接进 sharp 就是内存炸弹，绝不信任入参。
+  const thumbSize = clampThumbSize(size);
+  const thumbFit = normalizeFit(fit);
+
   const fileStat = await fs.stat(filePath);
   cache.registerSource(filePath);
 
   // Force refresh: drop the cached thumbnail (+broken marker) for this size/fit
   // so it is regenerated on this request (used by the “刷新缩略图” context action)
   if (opts.refresh) {
-    const staleKey = getCacheKey(filePath, size, fit);
+    const staleKey = getCacheKey(filePath, thumbSize, thumbFit);
     try { await fs.unlink(staleKey); } catch (_) { /* no cache file */ }
     try { await fs.unlink(staleKey + '.broken'); } catch (_) { /* no broken marker */ }
   }
@@ -517,16 +532,16 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   // Video thumbnail — extract frame via ffmpeg
   const ext = path.extname(filePath).toLowerCase();
   if (VIDEO_EXTENSIONS.includes(ext)) {
-    const cacheKey = getCacheKey(filePath, size, fit);
-    return serveVideoThumbnail(filePath, size, cacheKey, res, fileStat);
+    const cacheKey = getCacheKey(filePath, thumbSize, thumbFit);
+    return serveVideoThumbnail(filePath, thumbSize, cacheKey, res, fileStat);
   }
 
   // DICOM thumbnail — convert via dicom service
   if (ext === DICOM_EXTENSION) {
-    return serveDicomThumbnail(filePath, size, fit, res, fileStat);
+    return serveDicomThumbnail(filePath, thumbSize, thumbFit, res, fileStat);
   }
 
-  const cacheKey = getCacheKey(filePath, size, fit);
+  const cacheKey = getCacheKey(filePath, thumbSize, thumbFit);
 
   // Check cache first
   try {
@@ -537,8 +552,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
       if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Content-Length', cacheStat.size);
-      const stream = require('fs').createReadStream(cacheKey);
-      return stream.pipe(res);
+      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
     }
   } catch (e) {
     // Cache miss or error, generate new thumbnail
@@ -548,7 +562,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   try {
     await fs.access(cacheKey + '.broken', fs.constants.F_OK);
     // Known broken file — serve placeholder immediately without retrying sharp
-    return serveBrokenImagePlaceholder(size, res);
+    return serveBrokenImagePlaceholder(thumbSize, res);
   } catch (_) {
     // No broken marker, proceed with thumbnail generation
   }
@@ -558,11 +572,11 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
 
   try {
     // Generate thumbnail with sharp (并发受限 + 同 key 去重)
-    const resizeOpts = fit === 'inside'
+    const resizeOpts = thumbFit === 'inside'
       ? { fit: 'inside', withoutEnlargement: true }
       : { fit: 'cover', position: 'centre' };
     const buffer = await generateThumbnail(cacheKey, () => sharp(filePath)
-      .resize(size, size, resizeOpts)
+      .resize(thumbSize, thumbSize, resizeOpts)
       .jpeg({ quality: 80 })
       .toBuffer());
 
@@ -577,7 +591,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
     try {
       await fs.writeFile(cacheKey + '.broken', '');
     } catch (_) { /* non-critical */ }
-    serveBrokenImagePlaceholder(size, res);
+    serveBrokenImagePlaceholder(thumbSize, res);
   }
 }
 
@@ -592,8 +606,7 @@ async function serveDicomThumbnail(filePath, size, fit, res, fileStat) {
       if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Content-Length', cacheStat.size);
-      const stream = require('fs').createReadStream(cacheKey);
-      return stream.pipe(res);
+      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
     }
   } catch (e) { /* cache miss */ }
 

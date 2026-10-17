@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 const { readData, writeData } = require('../data/store');
 const cache = require('../services/cache');
+const { validateRootCandidate } = require('../security/pathGuard');
 
 // Open native folder picker and return selected path
 router.post('/pick', (req, res) => {
@@ -58,16 +59,23 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Path is required' });
   }
 
+  // 允许任意路径当根目录 = 白名单形同虚设：一条 POST 就能把 D:\ 或
+  // C:\Windows 加进来，之后所有 /api/image/view?path= 都能读那个目录。
+  const candidate = validateRootCandidate(folderPath);
+  if (!candidate.ok) {
+    return res.status(400).json({ error: candidate.reason });
+  }
+
   const folders = readData();
-  const existing = folders.find(f => f.path === folderPath);
+  const existing = folders.find(f => f.path === candidate.path);
   if (existing) {
     return res.status(409).json({ error: 'Folder already exists' });
   }
 
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    path: folderPath,
-    name: folderPath.split(/[/\\]/).pop() || folderPath,
+    path: candidate.path,
+    name: candidate.path.split(/[/\\]/).pop() || candidate.path,
     addedAt: new Date().toISOString()
   };
 

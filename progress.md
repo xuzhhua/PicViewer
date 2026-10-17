@@ -1,5 +1,70 @@
 # PicViewer - 进度日志
 
+## 2026-10-17（安全加固：暴露面 / 崩溃点 / 越权校验）
+
+起因：全工程审计后按用户批准的三组改动实施（只做这三组，其它审计项未动）。
+
+### 组 1：收窄暴露面
+- `server/index.js`：**默认只监听 `127.0.0.1`**（以前固定 `0.0.0.0`）。
+  需要手机/远程访问时在 `server/config.json` 设 `"lanAccess": true`（或环境变量
+  `PICVIEWER_LAN=1`，`PICVIEWER_HOST` 可覆盖地址）；此时监听 `0.0.0.0` 并**强制**
+  开启令牌鉴权 —— 不允许「监听公网 + 无鉴权」的组合。
+- 新增 `server/security/auth.js`：令牌持久化在 `server/data/security.json`
+  （首次启动生成 24 字节 base64url），启动日志打印带 `?token=` 的局域网地址；
+  校验通过后种 HttpOnly `SameSite=Lax` Cookie（`<img>` 请求也会带上）。
+  本机请求（回环地址 + 本机 Host 同时成立）直接放行，Electron/本机浏览器无需令牌。
+- 新增 `server/middleware/cors.js` 替换 `app.use(cors())`：只回显同源、本机回环、
+  以及（开启局域网模式时）本机局域网 IP；恶意来源的预检直接 403。
+- `client/src/main.jsx`：从地址栏抹掉 `?token=`（截图/分享/Referer 不外泄）。
+- 私有数据出库：`.gitignore` 补上 `server/data/{folders,ignored_folders,favorites,security}.json`
+  与 `server/cache/`；`git rm --cached` 摘掉已跟踪的 `ignored_folders.json` / `favorites.json`
+  （前者历史上提交过 `X:\...\Private\...` 这种真实路径）。
+
+### 组 2：消除进程级崩溃点
+- 新增 `server/utils/range.js`：重写 Range 解析。旧实现把 `bytes=-500` 解析成
+  `start=NaN` / `Content-Length: NaN`（Node 直接抛错 500），越界也不回 416。
+  现在后缀区间、开区间（5MB 分块）、越界 416、多段取第一段、非法忽略都有单测。
+- `server/services/image.js`：所有 `createReadStream(...).pipe(res)` 改成 `pipeline` +
+  统一错误处理（客户端中途断开不再触发 `ERR_STREAM_PREMATURE_CLOSE` 未捕获异常）。
+- `server/routes/download.js`：archiver 补 `error` 监听 + `res.on('close')` 中止打包
+  （打包中途失败以前会回 200 + 半截 ZIP）；补上定义了却从未使用的 `MAX_TOTAL_SIZE`
+  （>4GB 直接回 413 提示分批）。
+- `server/services/dicom.js`：DICOM 头里的 Rows/Columns 是文件内容，旧代码直接
+  `Buffer.alloc(rows*columns*4)`（最坏 17GB OOM）。加像素总数上限 2500 万、
+  文件大小上限 512MB、像素数据长度校验。
+- `server/index.js`：进程级 `uncaughtException` / `unhandledRejection` 兜底
+  （单次只记录不退出，10 秒内 5 次才退出，避免 Electron 主进程被一次读失败带走）。
+- `server/routes/image.js`：错误映射统一走 `sendError`（headers 已发出时 destroy 而不是
+  再 `res.status().json()` 抛 `ERR_HTTP_HEADERS_SENT`）。
+
+### 组 3：越权路径校验全覆盖
+- 新增 `server/security/pathGuard.js`：全服务端唯一的路径判定入口
+  （normalize + 尾部反斜杠归一 + Windows 大小写折叠 + 分隔符边界），
+  `browse.js` / `image.js` 里各自那份拷贝合并到这里。
+- `server/routes/actions.js`：`/rotate`、`/explorer`、`/folder-preview` 三条路由以前
+  **完全不校验路径**（任意文件读取 / RCE）。现在全部 `isPathAllowed`；
+  `/rotate` 还限制可旋转扩展名与 90° 步进；`/folder-preview` 的 `count` 夹到 1..9；
+  `/explorer` 由 `exec(模板字符串)` 改成 `spawn('explorer.exe', args)`（不经 shell，
+  路径里的引号/`&` 不再能注入命令）。
+- `server/routes/folders.js`：新增根目录走 `validateRootCandidate` —— 拒绝磁盘根目录、
+  系统目录、相对路径、不存在的路径（以前一条 POST 就能把 `C:\` 加进白名单）。
+- `server/routes/image.js`：缩略图 `size` 夹到 16..2048（`size=20000` 曾让 sharp 申请
+  约 1.6GB 位图），`fit` 只认 `cover` / `inside`（`server/utils/imageParams.js`，含单测）。
+- `electron-main.js`：窗口/托盘地址由 `localhost` 改成 `127.0.0.1`，避免 Windows 上
+  先解析到 `::1` 再回退的额外等待。
+
+### 验证
+- 单测 94 项全过（新增 pathGuard 14 / range 10 / thumbParams 6 / auth 12 / cors 8）。
+- 隔离实例 E2E 58 项全过：默认模式 30（浏览/ETag 304/Range 206/416/缩略图夹紧/CORS/gzip）、
+  写接口路径校验 13（rotate/explorer/folder-preview/download 越权 403、加根目录白名单、
+  ZIP 正常）、局域网模式 15（无令牌 401、三种令牌通道、图片请求、回环免令牌、401 HTML 页）。
+- `npm run build` 通过（`dist/assets/index-DPh59Etu.js 208.02 kB`）。
+
+### 注意
+- **升级后第一次启动会生成 `server/data/security.json`**；不开 `lanAccess` 时它不参与鉴权。
+- 服务重启后局域网地址中的 token 不变（持久化），手机书签可以一直用。
+- 之前如果已经用手机访问，升级后需要重新用带 `?token=` 的新地址打开一次。
+
 ## 2026-10-17（大文件 / 网络盘 / 远程访问加载慢 —— 三层优化）
 
 ### 第一层：目录元数据 + 并发（网络盘最先卡在这里）

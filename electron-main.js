@@ -63,7 +63,9 @@ function createWindow() {
   }
 
   // Load the Express-served app
-  mainWindow.loadURL(`http://localhost:${serverPort}`);
+  // 用 127.0.0.1 而不是 localhost：服务端默认只绑 IPv4 回环，而 Windows 上
+  // localhost 可能先解析到 ::1，Chromium 要等一次连接失败才回退。直连 IP 稳定。
+  mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
 
   // Show when ready (avoids white flash)
   mainWindow.once('ready-to-show', () => {
@@ -110,7 +112,7 @@ function createTray() {
     {
       label: '打开浏览器',
       click: () => {
-        shell.openExternal(`http://localhost:${serverPort}`);
+        shell.openExternal(`http://127.0.0.1:${serverPort}`);
       },
     },
     { type: 'separator' },
