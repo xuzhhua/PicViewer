@@ -12,21 +12,19 @@ const searchRouter = require('./routes/search');
 const actionsRouter = require('./routes/actions');
 const deleteRouter = require('./routes/delete');
 const cache = require('./services/cache');
-const { DATA_DIR, readConfig } = require('./paths');
+const { readConfig } = require('./paths');
 const { jsonCompression } = require('./middleware/jsonCompression');
 const { createCors } = require('./middleware/cors');
-const { createAuthMiddleware, getOrCreateToken, isLoopbackRequest } = require('./security/auth');
 
 const app = express();
 app.disable('x-powered-by');
 
-// 运行时状态：监听地址、是否开了局域网访问、令牌。请求中间件每帧读这里，
+// 运行时状态：监听地址、是否开了局域网访问。请求中间件每帧读这里，
 // 因为 startServer() 可能在模块加载之后才被调用（Electron 就是这么用的）。
 const runtime = {
   host: '127.0.0.1',
   lan: false,
   lanIPs: [],
-  token: null,
   port: null,
 };
 
@@ -44,14 +42,14 @@ function getPort() {
 }
 
 /**
- * 决定监听地址与是否开启令牌鉴权。
+ * 决定监听地址。
  *
- * 默认只监听 127.0.0.1：照片库是个人的，把端口开到 0.0.0.0 又不鉴权等于把
- * 整个磁盘的读删权限交给同网段的任何设备（以及用户浏览器里的任意恶意页面）。
+ * 默认只监听 127.0.0.1。需要手机/远程/反向代理访问时，在 config.json 里设
+ * `"lanAccess": true`（或环境变量 PICVIEWER_LAN=1），此时监听 0.0.0.0。
  *
- * 需要手机/远程访问时，在 config.json 里设 `"lanAccess": true`（或环境变量
- * PICVIEWER_LAN=1），此时监听 0.0.0.0 并自动生成/复用访问令牌。
- * 只要监听地址不是回环地址，就一定开鉴权 —— 不允许「暴露监听 + 无鉴权」的组合。
+ * 鉴权不在本服务里做：本服务没有账号体系，也不该有。对外暴露时请把
+ * Authentik / 其它反向代理放在前面，并且只在防火墙里放行代理的来源地址，
+ * 不要让 0.0.0.0 的端口直接暴露到公网。
  */
 function getServerOptions() {
   const config = readConfig();
@@ -77,8 +75,6 @@ function getLocalIPs() {
 // —— 中间件 ——
 // CORS 收窄：只放行本服务自己的页面与本机工具（见 middleware/cors.js）
 app.use(createCors(() => ({ lan: runtime.lan, lanIPs: runtime.lanIPs })));
-// 局域网模式下非本机请求必须带令牌（见 security/auth.js）
-app.use(createAuthMiddleware(() => runtime.token));
 app.use(express.json({ limit: '1mb' }));
 // JSON 响应 gzip + ETag/304（远程访问时目录列表的流量大头）
 app.use(jsonCompression());
@@ -130,7 +126,7 @@ app.use((err, req, res, next) => {
  * Start the HTTP server. Returns the http.Server instance.
  * @param {number} [port] - Port to listen on (default: from config or 3456)
  * @param {{host?: string, lan?: boolean}} [overrides] - 测试用
- * @returns {Promise<{ server: import('http').Server, port: number, host: string, lan: boolean, token: string|null }>}
+ * @returns {Promise<{ server: import('http').Server, port: number, host: string, lan: boolean }>}
  */
 function startServer(port, overrides = {}) {
   const targetPort = port || getPort();
@@ -142,7 +138,6 @@ function startServer(port, overrides = {}) {
   runtime.host = host;
   runtime.lan = lan;
   runtime.lanIPs = lan ? getLocalIPs() : [];
-  runtime.token = lan ? getOrCreateToken(DATA_DIR) : null;
 
   const displayHost = isLoopbackHost(host) ? '127.0.0.1' : host;
 
@@ -158,13 +153,13 @@ function startServer(port, overrides = {}) {
         if (lan) {
           const ips = runtime.lanIPs.length > 0 ? runtime.lanIPs : ['<本机局域网IP>'];
           for (const ip of ips) {
-            console.log(`LAN access:  http://${ip}:${p}/?token=${runtime.token}`);
+            console.log(`LAN access:  http://${ip}:${p}`);
           }
-          console.log('局域网访问已开启：非本机请求需要上面地址里的 token（已保存，重启不变）。');
+          console.log('局域网访问已开启（监听 0.0.0.0）。本服务不含账号体系——对外访问请走前置反向代理（Authentik 等），并只放行代理来源地址。');
         } else {
           console.log('局域网访问：已关闭（仅本机可访问）。需要手机/远程访问时，在 server/config.json 里设 "lanAccess": true 后重启。');
         }
-        resolve({ server, port: p, host, lan, token: runtime.token });
+        resolve({ server, port: p, host, lan });
       });
 
       // 远程/移动网络下，一张图一个 TCP 握手太贵。Node 默认 5 秒就断开空闲
@@ -218,4 +213,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, startServer, getPort, getServerOptions, isLoopbackRequest, runtime };
+module.exports = { app, startServer, getPort, getServerOptions, runtime };

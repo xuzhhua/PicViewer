@@ -105,3 +105,26 @@ test('同源预检（没有 Origin）→ 204', () => {
   assert.equal(result.nextCalled, false);
   assert.equal(result.res.statusCode, 204);
 });
+
+test('反向代理后：Origin 与 X-Forwarded-Host 相同 → 放行', () => {
+  // 代理常把 Host 改写成 127.0.0.1:port，浏览器看到的页面来源却是 https://pics.example.com
+  const result = run(createCors(() => ({})), makeReq({
+    headers: {
+      host: '127.0.0.1:18093',
+      'x-forwarded-host': 'pics.example.com',
+      origin: 'https://pics.example.com',
+    },
+  }));
+  assert.equal(result.res.headers['access-control-allow-origin'], 'https://pics.example.com');
+});
+
+test('X-Forwarded-Host 带端口/多值时取第一段并去端口', () => {
+  const result = run(createCors(() => ({})), makeReq({
+    headers: {
+      host: '127.0.0.1:18093',
+      'x-forwarded-host': 'pics.example.com:8443, proxy.internal',
+      origin: 'https://pics.example.com:8443',
+    },
+  }));
+  assert.equal(result.res.headers['access-control-allow-origin'], 'https://pics.example.com:8443');
+});

@@ -16,11 +16,33 @@
  * 不放行时**不设置** `Access-Control-Allow-Origin`，浏览器自己会拦下响应读取
  * 和触发预检的非简单请求；这里对 OPTIONS 直接回 403 更直白。
  */
-const { hostName } = require('../security/auth');
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-const DEFAULT_ALLOWED_HEADERS = 'Content-Type, X-PicViewer-Token';
+const DEFAULT_ALLOWED_HEADERS = 'Content-Type';
 const DEFAULT_ALLOWED_METHODS = 'GET, POST, PUT, DELETE, OPTIONS';
+
+/** 取请求头 `Host` 的主机名部分（去掉端口、去掉 IPv6 的方括号） */
+function hostName(req) {
+  const raw = String((req && req.headers && req.headers.host) || '').trim();
+  if (!raw) return '';
+  // IPv6：[::1]:18093
+  if (raw.startsWith('[')) {
+    const end = raw.indexOf(']');
+    return end === -1 ? raw.toLowerCase() : raw.slice(0, end + 1).toLowerCase();
+  }
+  return raw.split(':')[0].toLowerCase();
+}
+
+/**
+ * 反向代理后的主机名：代理常常把 Host 改写成 127.0.0.1:port，而浏览器看到的
+ * 页面来源是 https://pics.example.com。同源请求本来就不受 CORS 限制，这里多认
+ * 一个 X-Forwarded-Host 只是让「代理后仍有跨源调用」的场景不至于莫名 403。
+ */
+function forwardedHostName(req) {
+  const raw = String((req && req.headers && (req.headers['x-forwarded-host'] || '')) || '').trim();
+  if (!raw) return '';
+  return raw.split(',')[0].trim().split(':')[0].toLowerCase();
+}
 
 /**
  * @param {string|undefined} origin
@@ -39,6 +61,8 @@ function isAllowedOrigin(origin, req, opts = {}) {
 
   const requestHost = hostName(req);
   if (requestHost && originHost === requestHost) return true;
+  const fwdHost = forwardedHostName(req);
+  if (fwdHost && originHost === fwdHost) return true;
   if (LOOPBACK_HOSTS.has(originHost)) return true;
 
   if (opts.lan) {
@@ -77,6 +101,8 @@ function createCors(getOptions) {
 module.exports = {
   createCors,
   isAllowedOrigin,
+  hostName,
+  forwardedHostName,
   DEFAULT_ALLOWED_HEADERS,
   DEFAULT_ALLOWED_METHODS,
 };

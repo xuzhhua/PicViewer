@@ -33,20 +33,6 @@ import './index.css';
   document.head.appendChild(link);
 })();
 
-// 局域网/远程访问模式下，服务端要求非本机请求带访问令牌。
-// 用启动日志里带 `?token=…` 的地址打开时，服务端已经在响应里种了 HttpOnly
-// Cookie（页面里的 fetch / <img> 会自动带上），这里只负责把 token 从地址栏
-// 抹掉：截图、复制链接、Referer 都不该把令牌带出去。
-(function stripTokenFromUrl() {
-  try {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has('token')) return;
-    url.searchParams.delete('token');
-    const search = url.searchParams.toString();
-    window.history.replaceState({}, '', url.pathname + (search ? '?' + search : '') + url.hash);
-  } catch (_) { /* 老浏览器/异常 URL 忽略 */ }
-})();
-
 // Register PWA Service Worker + 更新检测（dev 下自动跳过，见 src/pwa.js）
 registerServiceWorker();
 

@@ -1,5 +1,21 @@
 # PicViewer - 进度日志
 
+## 2026-10-17（移除内置令牌鉴权：改由前置反向代理负责）
+
+起因：令牌方案要求带 `?token=` 打开，用户在 PicViewer 前面已经部署了 Authentik，
+这个内置令牌既多余又和前置登录冲突，正常访问反而被 401 挡住。
+
+- 删除 `server/security/auth.js`（令牌生成/持久化/Cookie/请求校验）与 `tests/auth.test.js`。
+- `server/index.js`：去掉鉴权中间件与 `runtime.token`；启动日志不再打印 `?token=`；
+  `lanAccess` 现在**只决定监听地址**（`true` → `0.0.0.0`，默认 `127.0.0.1`）。
+- `client/src/main.jsx`：去掉地址栏 `?token=` 的清除逻辑。
+- `server/middleware/cors.js`：`hostName` 内联到本文件（原来从 auth.js 引），
+  允许头里去掉 `X-PicViewer-Token`；判来源时同时认 `Host` 与 `X-Forwarded-Host`
+  （代理常把 Host 改写成 `127.0.0.1:port`，这样代理后仍有跨源调用也不会莫名 403）。
+- 仍未改变的安全边界：默认只听回环；对外必须是「前置代理 + 防火墙只放行代理来源 IP」。
+  `server/data/security.json` 若已生成可直接删掉，代码不再读取它。
+- README「局域网 / 远程访问」一节改写为代理部署说明。
+
 ## 2026-10-17（安全加固：暴露面 / 崩溃点 / 越权校验）
 
 起因：全工程审计后按用户批准的三组改动实施（只做这三组，其它审计项未动）。
