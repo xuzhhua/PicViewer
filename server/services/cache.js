@@ -24,6 +24,7 @@ const {
   CACHE_DIR,
   THUMBNAILS_DIR,
   TRANSCODES_DIR,
+  PREVIEWS_DIR,
   REGISTRY_FILE,
   ensureDir,
   readConfig
@@ -32,15 +33,19 @@ const {
 const CACHE_ROOT = CACHE_DIR;
 const THUMB_DIR = THUMBNAILS_DIR;
 const TRANSCODE_DIR = TRANSCODES_DIR;
+const PREVIEW_DIR = PREVIEWS_DIR;
 
 // New-scheme filenames. Anything that does not match is a leftover from the
 // previous scheme (<hash>.jpg / <hash>.mp4), which can never be hit again and is
 // therefore reclaimed by the sweep.
 const THUMB_RE = /^([0-9a-f]{32})__(\d+)__(?:cover|inside)\.jpg(?:\.broken)?$/;
 const TRANSCODE_RE = /^([0-9a-f]{32})__(\d+)\.mp4$/;
+// 预览图按「最大边长 + 输出格式」区分（带透明通道的图输出 webp，其余 jpg）
+const PREVIEW_RE = /^([0-9a-f]{32})__(\d+)__(?:jpg|webp)(?:\.broken)?$/;
 
 const DEFAULT_THUMB_CAP_MB = 1024;
 const DEFAULT_TRANSCODE_CAP_MB = 2048;
+const DEFAULT_PREVIEW_CAP_MB = 2048;
 // Never evict something we just wrote — it may still be streaming to a client.
 const EVICT_GRACE_MS = 60 * 1000;
 const SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h
@@ -60,8 +65,14 @@ function pathHash(p) {
 }
 
 function ensureDirs() {
-  for (const dir of [CACHE_ROOT, THUMB_DIR, TRANSCODE_DIR]) {
-    ensureDir(dir);
+  for (const dir of [CACHE_ROOT, THUMB_DIR, TRANSCODE_DIR, PREVIEW_DIR]) {
+    try {
+      ensureDir(dir);
+    } catch (e) {
+      // 缓存目录建不出来（只读安装目录 / 权限受限）不该让整个服务起不来：
+      // 对应类型的缓存会退化成「每次重新生成」，功能仍然可用。
+      console.warn(`[Cache] Cannot create ${dir}: ${e.message}`);
+    }
   }
 }
 
@@ -70,7 +81,8 @@ function caps() {
   const mb = (v, fallback) => (Number.isFinite(v) && v >= 0 ? v : fallback);
   return {
     thumbnails: mb(cfg.thumbnailMaxMB, DEFAULT_THUMB_CAP_MB) * 1024 * 1024,
-    transcodes: mb(cfg.transcodeMaxMB, DEFAULT_TRANSCODE_CAP_MB) * 1024 * 1024
+    transcodes: mb(cfg.transcodeMaxMB, DEFAULT_TRANSCODE_CAP_MB) * 1024 * 1024,
+    previews: mb(cfg.previewMaxMB, DEFAULT_PREVIEW_CAP_MB) * 1024 * 1024
   };
 }
 
@@ -82,6 +94,15 @@ function thumbnailFile(filePath, size, fit = 'cover') {
 
 function transcodeFile(filePath, mtimeMs) {
   return path.join(TRANSCODE_DIR, `${pathHash(filePath)}__${Math.round(mtimeMs)}.mp4`);
+}
+
+/**
+ * 灯箱预览图的缓存路径。maxEdge 是「最大边长」而不是固定正方形——
+ * 预览图保持原图比例，只把长边限制在 maxEdge 以内。
+ */
+function previewFile(filePath, maxEdge, format = 'jpg') {
+  const ext = format === 'webp' ? 'webp' : 'jpg';
+  return path.join(PREVIEW_DIR, `${pathHash(filePath)}__${maxEdge}__${ext}`);
 }
 
 // --- registry ---
@@ -198,7 +219,7 @@ async function sweep() {
 
   // List each cache dir once — the sweep touches every entry anyway.
   const listings = new Map();
-  for (const dir of [THUMB_DIR, TRANSCODE_DIR]) {
+  for (const dir of [THUMB_DIR, TRANSCODE_DIR, PREVIEW_DIR]) {
     try {
       listings.set(dir, await fs.readdir(dir));
     } catch (_) {
@@ -228,7 +249,7 @@ async function sweep() {
 
   // 2. Anything the registry does not know about is unreachable (legacy scheme,
   //    lost registration) — it can never be served again, so reclaim it now.
-  for (const [dir, re] of [[THUMB_DIR, THUMB_RE], [TRANSCODE_DIR, TRANSCODE_RE]]) {
+  for (const [dir, re] of [[THUMB_DIR, THUMB_RE], [TRANSCODE_DIR, TRANSCODE_RE], [PREVIEW_DIR, PREVIEW_RE]]) {
     for (const n of listings.get(dir)) {
       if (n.endsWith('.tmp')) continue;
       const full = path.join(dir, n);
@@ -300,10 +321,12 @@ async function enforceCaps() {
   const cap = caps();
   const thumbs = await enforceCap(THUMB_DIR, cap.thumbnails);
   const transcodes = await enforceCap(TRANSCODE_DIR, cap.transcodes);
+  const previews = await enforceCap(PREVIEW_DIR, cap.previews);
   return {
     thumbnails: thumbs,
     transcodes,
-    freedBytes: thumbs.freedBytes + transcodes.freedBytes
+    previews,
+    freedBytes: thumbs.freedBytes + transcodes.freedBytes + previews.freedBytes
   };
 }
 
@@ -346,7 +369,7 @@ async function init() {
     const mb = (n) => (n / (1024 * 1024)).toFixed(1);
     console.log(
       `[Cache] orphan sources: ${swept.orphans}, unreachable files: ${swept.unreachable}, ` +
-      `evicted: ${capped.thumbnails.removed + capped.transcodes.removed} (freed ${mb(swept.freedBytes + capped.freedBytes)} MB)`
+      `evicted: ${capped.thumbnails.removed + capped.transcodes.removed + capped.previews.removed} (freed ${mb(swept.freedBytes + capped.freedBytes)} MB)`
     );
   }
 
@@ -370,6 +393,7 @@ ensureDirs();
 module.exports = {
   thumbnailFile,
   transcodeFile,
+  previewFile,
   registerSource,
   removeSourcesCache,
   scheduleSweepSoon,

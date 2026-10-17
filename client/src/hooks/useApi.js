@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { mergeBrowseData } from '../utils/mergeBrowse';
 
 function encodePath(filePath) {
   if (!filePath) return '';
@@ -33,6 +34,11 @@ export default function useApi() {
   const [ignoredFolders, setIgnoredFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // 自动刷新需要读到「当前」视图，但轮询的 interval 不应该因为列表变了就重建
+  const browseDataRef = useRef(null);
+  useEffect(() => { browseDataRef.current = browseData; }, [browseData]);
+  const refreshingRef = useRef(false);
 
   // Fetch configured root folders
   const fetchFolders = useCallback(async () => {
@@ -92,6 +98,46 @@ export default function useApi() {
       setBrowseData(null);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /**
+   * 静默增量刷新当前目录（自动轮询用）。
+   *
+   * 和 browse() 的区别：不置 loading（不闪「加载中…」）、失败不弹错误（网络
+   * 抖一下不该打断浏览）、不整体替换数据，只把新增/删除的条目合进当前列表。
+   * 返回 true 表示列表确实变了。
+   */
+  const refreshBrowse = useCallback(async () => {
+    const prev = browseDataRef.current;
+    if (!prev || prev.isSearch || prev.recursive) return false;
+    if (refreshingRef.current) return false;
+    refreshingRef.current = true;
+    try {
+      const encoded = encodePath(prev.path || '');
+      const params = new URLSearchParams();
+      if (encoded) params.set('path', encoded);
+      // 故意不带 details=1：带上的话服务端会对每个文件跑一次 sharp 读元数据
+      // （网络盘上等于把整目录重读一遍），而轮询只需要知道「有没有新文件」。
+      // 已经存在的条目会沿用旧对象，元数据不会丢；新出现的条目暂时没有
+      // width/height/format，下次手动刷新（F5）时补齐。
+      const res = await fetch(`/api/browse?${params.toString()}`);
+      if (!res.ok) return false;
+      const next = await res.json();
+
+      // 请求期间用户切了目录（或手动刷新过）→ 这次结果已经过期，丢掉
+      if (browseDataRef.current !== prev) return false;
+
+      const merged = mergeBrowseData(prev, next);
+      if (!merged) return false;
+      setBrowseData(merged.data);
+      return true;
+    } catch (e) {
+      // 静默：轮询失败不打扰用户（目录权限变化等仍会在手动刷新时暴露）
+      console.warn('自动刷新失败:', e.message);
+      return false;
+    } finally {
+      refreshingRef.current = false;
     }
   }, []);
 
@@ -157,6 +203,12 @@ export default function useApi() {
   const getImageUrl = useCallback((filePath) => {
     const encoded = encodePath(filePath);
     return `/api/image/view?path=${encoded}`;
+  }, []);
+
+  // Get lightbox preview URL (长边压缩版，服务端落盘缓存；比原图小一个数量级)
+  const getPreviewUrl = useCallback((filePath, maxEdge = 1920) => {
+    const encoded = encodePath(filePath);
+    return `/api/image/preview?path=${encoded}&w=${maxEdge}`;
   }, []);
 
   // Open native folder picker
@@ -329,6 +381,7 @@ export default function useApi() {
     fetchFolders,
     browse,
     browseRecursive,
+    refreshBrowse,
     addFolder,
     removeFolder,
     reorderFolders,
@@ -340,6 +393,7 @@ export default function useApi() {
     deleteFiles,
     removeFromView,
     getThumbnailUrl,
-    getImageUrl
+    getImageUrl,
+    getPreviewUrl
   };
 }

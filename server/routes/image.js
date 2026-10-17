@@ -52,4 +52,28 @@ router.get('/thumbnail', async (req, res) => {
   }
 });
 
+// Get lightbox preview (downscaled original, cached on disk)
+// GET /api/image/preview?path=<base64 encoded path>&w=1920
+// w = 期望的长边像素（会夹紧到 320~4096，默认 1920）；客户端按屏幕大小传
+router.get('/preview', async (req, res) => {
+  try {
+    const encodedPath = req.query.path;
+    if (!encodedPath) {
+      return res.status(400).json({ error: 'Path is required' });
+    }
+
+    const filePath = Buffer.from(encodedPath, 'base64url').toString('utf-8');
+    await imageService.servePreview(filePath, res, { w: req.query.w });
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    if (err.status === 403 || err.code === 'EACCES') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    console.error('Preview serve error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

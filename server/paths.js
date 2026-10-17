@@ -24,6 +24,8 @@ const STATE_ROOT = process.env.PICVIEWER_DATA_DIR
 const CACHE_DIR = path.join(STATE_ROOT, 'cache');
 const THUMBNAILS_DIR = path.join(CACHE_DIR, 'thumbnails');
 const TRANSCODES_DIR = path.join(CACHE_DIR, 'transcodes');
+// 灯箱用的中间尺寸预览图（比原图小一个数量级，网络盘/远程访问的关键）
+const PREVIEWS_DIR = path.join(CACHE_DIR, 'previews');
 const REGISTRY_FILE = path.join(CACHE_DIR, 'sources.jsonl');
 
 const DATA_DIR = path.join(STATE_ROOT, 'data');
@@ -64,6 +66,7 @@ module.exports = {
   CACHE_DIR,
   THUMBNAILS_DIR,
   TRANSCODES_DIR,
+  PREVIEWS_DIR,
   REGISTRY_FILE,
   DATA_DIR,
   FOLDERS_FILE,

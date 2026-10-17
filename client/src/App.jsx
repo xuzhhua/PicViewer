@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import FolderTree from './components/FolderTree';
 import ImageGrid, { VideoGrid } from './components/ImageGrid';
 import Lightbox from './components/Lightbox';
@@ -23,6 +23,11 @@ const SORT_OPTIONS = [
   { key: 'size', label: '大小' },
   { key: 'type', label: '类型' },
 ];
+
+// 浏览时自动刷新当前目录的间隔。只在窗口可见、且不是搜索结果/展平模式时轮询。
+const AUTO_REFRESH_MS = 5000;
+// 慢速目录（网络/映射盘扫描要几秒）自动退避的上限，避免把盘读爆
+const AUTO_REFRESH_MAX_MS = 60000;
 
 function sortMedia(items, sortBy) {
   const sorted = [...items];
@@ -49,7 +54,7 @@ function sortMedia(items, sortBy) {
 }
 
 export default function App() {
-  const { folders, browseData, ignoredFolders, loading, error, setError, addFolder, removeFolder, reorderFolders, browse, browseRecursive, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search, deleteFiles, removeFromView } = useApi();
+  const { folders, browseData, ignoredFolders, loading, error, setError, addFolder, removeFolder, reorderFolders, browse, browseRecursive, refreshBrowse, pickFolder, addIgnored, removeIgnored, pickIgnoredFolder, search, deleteFiles, removeFromView } = useApi();
 
   const [currentPath, setCurrentPath] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -243,13 +248,9 @@ export default function App() {
     }
   }, [currentPath, isRecursive, browse, browseRecursive]);
 
-  const handleOpenLightbox = useCallback((index) => {
-    setLightboxIndex(index);
-  }, []);
-
-  const handleCloseLightbox = useCallback(() => {
-    setLightboxIndex(-1);
-  }, []);
+  // NOTE: the lightbox open/navigate/close handlers live further down, after
+  // `allMedia` is computed — they need to read the current list to remember
+  // which file is open (see the path-tracking block below).
 
   // Multi-select — toggles the item in/out of the selection on any click
   // (checkbox single-click should work without needing Ctrl)
@@ -457,6 +458,93 @@ export default function App() {
 
   // Combine for lightbox: images first, then videos
   const allMedia = [...filteredImages, ...filteredVideos];
+
+  // ---- Lightbox navigation: remember the open file by PATH, not by index ----
+  // 自动刷新会在列表中间插入新照片（按名称排序时尤其明显），数字下标会整体
+  // 漂移 —— 正在看的那张会突然变成别的图。所以每次导航都把 path 记下来，
+  // 列表变化后再按 path 找回去。
+  const lightboxPathRef = useRef(null);
+  const handleOpenLightbox = useCallback((index) => {
+    lightboxPathRef.current = allMedia[index]?.path ?? null;
+    setLightboxIndex(index);
+  }, [allMedia]);
+  const handleNavigate = useCallback((index) => {
+    lightboxPathRef.current = allMedia[index]?.path ?? null;
+    setLightboxIndex(index);
+  }, [allMedia]);
+  const handleCloseLightbox = useCallback(() => {
+    lightboxPathRef.current = null;
+    setLightboxIndex(-1);
+  }, []);
+
+  // 列表在灯箱打开期间变了（自动刷新新增/删除）→ 停在原来那张图上
+  useEffect(() => {
+    if (lightboxIndex < 0 || !lightboxPathRef.current) return;
+    if (allMedia[lightboxIndex]?.path === lightboxPathRef.current) return;
+    const idx = allMedia.findIndex(m => m.path === lightboxPathRef.current);
+    if (idx >= 0) {
+      setLightboxIndex(idx);
+    } else if (allMedia.length > 0) {
+      // 正在看的这张被删掉了 —— 就近停住，别关掉灯箱
+      const fallback = Math.min(lightboxIndex, allMedia.length - 1);
+      lightboxPathRef.current = allMedia[fallback].path;
+      setLightboxIndex(fallback);
+    }
+  }, [allMedia, lightboxIndex]);
+
+  // ---- Auto-refresh: poll the current folder so new files show up by themselves ----
+  // 只有普通目录轮询：搜索结果不刷新，「展平」模式每次都要遍历整棵目录树，代价太大。
+  const autoRefreshPath = browseData && !browseData.isSearch && !browseData.recursive
+    ? (browseData.path || '')
+    : null;
+  useEffect(() => {
+    if (autoRefreshPath === null) return;
+    let cancelled = false;
+    let timer = null;
+    let running = false;
+
+    const schedule = (delay) => {
+      if (!cancelled) timer = setTimeout(tick, delay);
+    };
+
+    const tick = async () => {
+      if (cancelled || running) return;
+      running = true;
+      let delay = AUTO_REFRESH_MS;
+      try {
+        // 后台标签页不扫描目录（省 IO），但保持在循环里等待 visibilitychange
+        if (document.visibilityState === 'visible') {
+          const startedAt = performance.now();
+          const changed = await refreshBrowse();
+          // 自适应退避：一次扫描要 2 秒，就按 8 秒起等，网络盘不会被读爆
+          delay = Math.min(
+            AUTO_REFRESH_MAX_MS,
+            Math.max(AUTO_REFRESH_MS, (performance.now() - startedAt) * 4)
+          );
+          // 列表真的变了（多半是新图出现）→ 立刻回到最快频率
+          if (changed) delay = AUTO_REFRESH_MS;
+        }
+      } finally {
+        running = false;
+        schedule(delay);
+      }
+    };
+
+    // 从后台切回来立即刷一次，不用干等一个周期
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      tick();
+    };
+
+    schedule(AUTO_REFRESH_MS);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [autoRefreshPath, refreshBrowse]);
 
   return (
     <div className="app">
@@ -727,7 +815,7 @@ export default function App() {
           images={allMedia}
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
-          onNavigate={setLightboxIndex}
+          onNavigate={handleNavigate}
           favorites={favorites}
           onAddFavorite={addFavorite}
           onRemoveFavorite={removeFavorite}

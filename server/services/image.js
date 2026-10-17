@@ -6,6 +6,8 @@ const sharp = require('sharp');
 const { readData } = require('../data/store');
 const dicom = require('./dicom');
 const cache = require('./cache');
+const { createLimiter } = require('../utils/limiter');
+const { applyFreshness } = require('../utils/httpCache');
 
 // libvips' operation cache keeps an open handle to every source file it reads
 // until the process exits. That leaves any file we generate a thumbnail for
@@ -13,6 +15,42 @@ const cache = require('./cache');
 // is held for the whole session. Thumbnails are cached on disk anyway, so the
 // operation cache buys us nothing; disabling it also keeps memory flat.
 sharp.cache(false);
+
+// 缩略图生成的并发上限（可用环境变量覆盖）。
+// 不限流时，一次滚动/一次打开灯箱就能同时甩出几十个 sharp 解码任务，
+// 把 libuv 线程池占满，原图请求跟着一起卡住。默认 3：足够跑满小图的吞吐，
+// 又始终留得下线程给原图流。
+const THUMBNAIL_CONCURRENCY = Math.max(1, parseInt(process.env.PICVIEWER_THUMB_CONCURRENCY, 10) || 3);
+const runThumbnailJob = createLimiter(THUMBNAIL_CONCURRENCY);
+console.log(`[Thumbnail] concurrency limit: ${THUMBNAIL_CONCURRENCY}`);
+
+// 同一个 cacheKey 的并发请求只做一次真实生成（网格/灯箱/预加载可能同时要同一张）
+const inFlightThumbnails = new Map();
+
+/**
+ * 生成一张缩略图并落盘缓存：经过并发限制器，且同 key 的并发请求共享结果。
+ * @param {string} cacheKey 缓存文件路径
+ * @param {() => Promise<Buffer>} generate 真正的生成函数
+ * @returns {Promise<Buffer>}
+ */
+function generateThumbnail(cacheKey, generate) {
+  const pending = inFlightThumbnails.get(cacheKey);
+  if (pending) return pending;
+  const job = runThumbnailJob(async () => {
+    const buffer = await generate();
+    try {
+      await fs.writeFile(cacheKey, buffer);
+    } catch (e) {
+      // 缓存目录不可写不该让图片显示不出来：本次照常返回，只是下次得再生成
+      console.warn(`[Cache] write failed ${path.basename(cacheKey)}: ${e.message}`);
+    }
+    return buffer;
+  });
+  inFlightThumbnails.set(cacheKey, job);
+  return job.finally(() => {
+    if (inFlightThumbnails.get(cacheKey) === job) inFlightThumbnails.delete(cacheKey);
+  });
+}
 
 // Video formats that browsers can play natively (no transcoding needed)
 const BROWSER_NATIVE_VIDEO = new Set(['.mp4', '.webm', '.m4v']);
@@ -22,6 +60,19 @@ const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv', '.avi', '.wmv', '.flv
 
 // DICOM extension
 const DICOM_EXTENSION = '.dcm';
+
+// --- 灯箱预览图（比原图小一个数量级，网络盘/远程访问的关键） ---
+// 长边规则（默认 1920、夹在 320~4096）在 utils/previewParams 里，便于单测。
+const {
+  PREVIEW_DEFAULT_EDGE,
+  clampPreviewEdge,
+} = require('../utils/previewParams');
+// 原图本来就不大时没必要重新编码（省一次 sharp 全解码）
+const PREVIEW_MAX_ORIGINAL_BYTES = 500 * 1024;
+// 预览图内容由源文件决定，源文件不变就可以长期缓存；变了靠 ETag 失效
+const PREVIEW_CACHE_CONTROL = 'public, max-age=604800, must-revalidate';
+// 动图（gif）和矢量图（svg）压成静态 JPEG 会丢帧/丢清晰度，交回原流程
+const PREVIEW_PASSTHROUGH = new Set(['.gif', '.svg']);
 
 // Check if path is within configured root folders
 function isPathAllowed(targetPath) {
@@ -218,6 +269,10 @@ async function serveFileDirect(filePath, res) {
   res.setHeader('Content-Type', contentType);
   res.setHeader('Accept-Ranges', 'bytes');
 
+  // 条件请求：文件没变就回 304，不再整份传输（视频 Range 请求同样受益）
+  const cacheControl = 'public, max-age=3600, must-revalidate';
+  if (applyFreshness(res.req, res, stat, cacheControl)) return;
+
   // Handle Range requests (essential for video seeking)
   const range = res.req?.headers?.range;
   if (range) {
@@ -229,6 +284,7 @@ async function serveFileDirect(filePath, res) {
     res.status(206);
     res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
     res.setHeader('Content-Length', chunkSize);
+    res.setHeader('Cache-Control', cacheControl);
 
     const stream = require('fs').createReadStream(filePath, { start, end });
     stream.pipe(res);
@@ -236,7 +292,6 @@ async function serveFileDirect(filePath, res) {
   }
 
   res.setHeader('Content-Length', stat.size);
-  res.setHeader('Cache-Control', 'public, max-age=3600');
 
   const stream = require('fs').createReadStream(filePath);
   stream.pipe(res);
@@ -263,19 +318,104 @@ async function serveFile(filePath, res) {
   return serveFileDirect(filePath, res);
 }
 
+/**
+ * 灯箱用的中间尺寸预览图。
+ *
+ * 灯箱原来直接加载原图：一张 3840×2160 的照片 3~8MB，网络盘上还得先从 SMB
+ * 把整张读过来再发出去。实测压到长边 2560 之后只剩原图的 15%~40%
+ * （565KB~1.5MB），1080 边长只有 2%~7%。生成结果落盘缓存，第二次访问直接从
+ * 本地盘流出去 —— 网络盘的原图只需要读一次。
+ *
+ * 页面上放大到超过预览图分辨率时，客户端会另外请求原图。
+ */
+async function servePreview(filePath, res, opts = {}) {
+  if (!isPathAllowed(filePath)) {
+    throw Object.assign(new Error('Path not allowed'), { status: 403 });
+  }
+
+  const maxEdge = clampPreviewEdge(opts.w);
+  const ext = path.extname(filePath).toLowerCase();
+  const fileStat = await fs.stat(filePath);
+
+  // 视频/DICOM/动图/矢量图交回原流程
+  if (VIDEO_EXTENSIONS.includes(ext) || ext === DICOM_EXTENSION || PREVIEW_PASSTHROUGH.has(ext)) {
+    return serveFile(filePath, res);
+  }
+
+  let meta = null;
+  try {
+    meta = await sharp(filePath).metadata();
+  } catch (e) {
+    // 解不开的格式（或坏文件）至少还能让浏览器自己试试
+    return serveFileDirect(filePath, res);
+  }
+  // 多帧图片（动图 webp / apng）压成静态图会丢帧
+  if (!meta || meta.pages > 1) {
+    return serveFileDirect(filePath, res);
+  }
+
+  const longest = Math.max(meta.width || 0, meta.height || 0);
+  if (longest > 0 && longest <= maxEdge && fileStat.size <= PREVIEW_MAX_ORIGINAL_BYTES) {
+    return serveFileDirect(filePath, res);
+  }
+
+  // 带透明通道的图用 webp（jpeg 会把透明区域变成黑/白底）
+  const format = meta.hasAlpha ? 'webp' : 'jpg';
+  const contentType = format === 'webp' ? 'image/webp' : 'image/jpeg';
+  const cacheKey = cache.previewFile(filePath, maxEdge, format);
+
+  // 放在生成之前：浏览器已经有这张预览图时，一个 304 就结束，不跑 sharp
+  if (applyFreshness(res.req, res, fileStat, PREVIEW_CACHE_CONTROL)) return;
+
+  cache.registerSource(filePath);
+
+  // 磁盘缓存命中：直接从本地盘流出去
+  try {
+    const cacheStat = await fs.stat(cacheKey);
+    if (cacheStat.mtime > fileStat.mtime) {
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', cacheStat.size);
+      return require('fs').createReadStream(cacheKey).pipe(res);
+    }
+  } catch (e) { /* cache miss */ }
+
+  try {
+    const buffer = await generateThumbnail(cacheKey, () => {
+      const pipeline = sharp(filePath)
+        .rotate() // 按 EXIF 方向摆正：原图是靠浏览器读 EXIF 才正的
+        .resize({ width: maxEdge, height: maxEdge, fit: 'inside', withoutEnlargement: true });
+      // progressive：慢速链路上浏览器可以先出模糊轮廓再逐步清晰
+      return format === 'webp'
+        ? pipeline.webp({ quality: 82 }).toBuffer()
+        : pipeline.jpeg({ quality: 82, progressive: true }).toBuffer();
+    });
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
+  } catch (err) {
+    console.error(`[Preview] ${path.basename(filePath)} failed: ${err.message}`);
+    // 兜底：原图总比什么都没有强
+    return serveFileDirect(filePath, res);
+  }
+}
+
 // Extract a video frame as thumbnail using ffmpeg, with caching
-async function serveVideoThumbnail(filePath, size, cacheKey, res) {
+async function serveVideoThumbnail(filePath, size, cacheKey, res, fileStat) {
   // Check cache first
   try {
     const cacheStat = await fs.stat(cacheKey);
-    const fileStat = await fs.stat(filePath);
     if (cacheStat.mtime > fileStat.mtime) {
+      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Length', cacheStat.size);
       const stream = require('fs').createReadStream(cacheKey);
       return stream.pipe(res);
     }
   } catch (e) { /* cache miss */ }
+
+  // 浏览器手里已有这张帧缩略图时不必再跑 ffmpeg
+  if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
 
   // Try ffmpeg frame extraction
   const ffmpegReady = await checkFfmpeg();
@@ -284,7 +424,7 @@ async function serveVideoThumbnail(filePath, size, cacheKey, res) {
     return serveVideoThumbnailPlaceholder(size, res);
   }
 
-  return new Promise((resolve, reject) => {
+  return runThumbnailJob(() => new Promise((resolve, reject) => {
     const args = [
       '-ss', '1',               // Seek to 1 second
       '-i', filePath,
@@ -330,7 +470,7 @@ async function serveVideoThumbnail(filePath, size, cacheKey, res) {
       }
       resolve();
     });
-  });
+  }));
 }
 
 // SVG placeholder fallback when ffmpeg is unavailable or fails
@@ -363,7 +503,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
     throw Object.assign(new Error('Path not allowed'), { status: 403 });
   }
 
-  await fs.access(filePath, fs.constants.R_OK);
+  const fileStat = await fs.stat(filePath);
   cache.registerSource(filePath);
 
   // Force refresh: drop the cached thumbnail (+broken marker) for this size/fit
@@ -378,12 +518,12 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   const ext = path.extname(filePath).toLowerCase();
   if (VIDEO_EXTENSIONS.includes(ext)) {
     const cacheKey = getCacheKey(filePath, size, fit);
-    return serveVideoThumbnail(filePath, size, cacheKey, res);
+    return serveVideoThumbnail(filePath, size, cacheKey, res, fileStat);
   }
 
   // DICOM thumbnail — convert via dicom service
   if (ext === DICOM_EXTENSION) {
-    return serveDicomThumbnail(filePath, size, fit, res);
+    return serveDicomThumbnail(filePath, size, fit, res, fileStat);
   }
 
   const cacheKey = getCacheKey(filePath, size, fit);
@@ -391,12 +531,12 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   // Check cache first
   try {
     const cacheStat = await fs.stat(cacheKey);
-    const fileStat = await fs.stat(filePath);
 
     // If cache is newer than original file, serve from cache
     if (cacheStat.mtime > fileStat.mtime) {
+      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Length', cacheStat.size);
       const stream = require('fs').createReadStream(cacheKey);
       return stream.pipe(res);
     }
@@ -413,18 +553,18 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
     // No broken marker, proceed with thumbnail generation
   }
 
+  // 浏览器手里已有这张缩略图时不必再跑 sharp（滚动列表时省掉大量重复生成）
+  if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
+
   try {
-    // Generate thumbnail with sharp
+    // Generate thumbnail with sharp (并发受限 + 同 key 去重)
     const resizeOpts = fit === 'inside'
       ? { fit: 'inside', withoutEnlargement: true }
       : { fit: 'cover', position: 'centre' };
-    const buffer = await sharp(filePath)
+    const buffer = await generateThumbnail(cacheKey, () => sharp(filePath)
       .resize(size, size, resizeOpts)
       .jpeg({ quality: 80 })
-      .toBuffer();
-
-    // Save to cache
-    await fs.writeFile(cacheKey, buffer);
+      .toBuffer());
 
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Length', buffer.length);
@@ -442,27 +582,27 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
 }
 
 // Generate DICOM thumbnail with caching
-async function serveDicomThumbnail(filePath, size, fit, res) {
+async function serveDicomThumbnail(filePath, size, fit, res, fileStat) {
   const cacheKey = getCacheKey(filePath, size, fit);
 
   // Check cache
   try {
     const cacheStat = await fs.stat(cacheKey);
-    const fileStat = await fs.stat(filePath);
     if (cacheStat.mtime > fileStat.mtime) {
+      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
       res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Length', cacheStat.size);
       const stream = require('fs').createReadStream(cacheKey);
       return stream.pipe(res);
     }
   } catch (e) { /* cache miss */ }
 
+  if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
+
   try {
-    const buffer = await dicom.generateDicomThumbnail(filePath, size, fit);
-    await fs.writeFile(cacheKey, buffer);
+    const buffer = await generateThumbnail(cacheKey, () => dicom.generateDicomThumbnail(filePath, size, fit));
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Length', buffer.length);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.end(buffer);
   } catch (err) {
     console.error(`[DICOM] Thumbnail failed: ${err.message}`);
@@ -470,4 +610,4 @@ async function serveDicomThumbnail(filePath, size, fit, res) {
   }
 }
 
-module.exports = { serveFile, serveThumbnail };
+module.exports = { serveFile, serveThumbnail, servePreview, clampPreviewEdge };

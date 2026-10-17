@@ -7,9 +7,42 @@ const MAX_ZOOM = 8;
 const ZOOM_STEP = 0.15;
 const SWIPE_THRESHOLD = 60;
 
+// Thumbnail strip virtualisation. .lightbox-thumb is 56px wide with a 4px gap,
+// so every item occupies 60px of the strip. We only render the items around the
+// active one: a folder with thousands of photos would otherwise mount thousands
+// of <img> elements, and the browser would fire off a thumbnail request for each
+// one that scrolls into view — which on a network drive is what makes switching
+// crawl (the server has to decode every original to build those thumbnails).
+const THUMB_ITEM_WIDTH = 60;
+const THUMB_RADIUS = 48;  // items kept on each side of the active one
+const THUMB_STEP = 24;    // window slides in steps of this many items (avoids re-render churn)
+// Upper bound on the "already loaded" path set (keeps the no-spinner shortcut
+// useful without growing forever during a long session).
+const MAX_READY_PATHS = 800;
+
+// 灯箱不再直接加载原图：一张 3840×2160 的照片 3~8MB，网络盘上还要先从 SMB
+// 读一遍。改成请求服务端压好的预览图（长边 = 屏幕最长边 × DPR，通常 1920~2560），
+// 体积只有原图的 15%~40%，且服务端会落盘缓存，第二次秒开。
+const PREVIEW_EDGE_STEP = 320;
+const PREVIEW_EDGE_MIN = 640;
+const PREVIEW_EDGE_MAX = 4096;
+// 放大超过这个倍数才需要原图的细节（1x 时预览图已经是屏幕像素 1:1）
+const DETAIL_ZOOM = 1.25;
+
+function getPreviewEdge() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const longest = Math.max(window.innerWidth || 1280, window.innerHeight || 720);
+  const needed = Math.ceil((longest * dpr) / PREVIEW_EDGE_STEP) * PREVIEW_EDGE_STEP;
+  return Math.min(PREVIEW_EDGE_MAX, Math.max(PREVIEW_EDGE_MIN, needed));
+}
+
 export default function Lightbox({ images, currentIndex, onClose, onNavigate, favorites, onAddFavorite, onRemoveFavorite, onDeleteRequest, keyboardDisabled }) {
-  const { getImageUrl, getThumbnailUrl } = useApi();
+  const { getImageUrl, getThumbnailUrl, getPreviewUrl } = useApi();
   const [loaded, setLoaded] = useState(false);
+  // 预览图加载失败时退回原图（旧格式/极端情况下的兜底）
+  const [useOriginal, setUseOriginal] = useState(false);
+  // 放大后叠加的原图加载完成（没完成就一直显示预览图，不闪白）
+  const [detailLoaded, setDetailLoaded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
   const [slideInterval, setSlideInterval] = useState(4000);
@@ -23,7 +56,13 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const [uiVisible, setUiVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const slideshowRef = useRef(null);
-  const preloadCache = useRef(new Set());
+  // path -> HTMLImageElement we keep alive so the decoded bitmap survives until
+  // the user actually needs it (a bare `new Image()` can be collected and then
+  // the switch has to decode the original again — painfully slow over SMB).
+  const preloadedImages = useRef(new Map());
+  // paths whose image has finished loading in this session: switching to one of
+  // these can skip the loading spinner entirely.
+  const readyPaths = useRef(new Set());
   const thumbsRef = useRef(null);
   const videoRef = useRef(null);
   const uiTimerRef = useRef(null);
@@ -73,6 +112,13 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   if (!item) { onClose(); return null; }
   const isVideo = item.type === 'video';
 
+  // 主图用「按屏幕算出来的预览图」，放大到超过 1.25x 才在它上面叠一张原图。
+  const previewEdge = isVideo ? 0 : getPreviewEdge();
+  const wantDetail = !isVideo && !useOriginal && zoom >= DETAIL_ZOOM;
+  const mainSrc = isVideo || useOriginal
+    ? getImageUrl(item.path)
+    : getPreviewUrl(item.path, previewEdge);
+
   // Set video loading state when item changes
   useEffect(() => {
     if (isVideo) setVideoLoading(true);
@@ -87,6 +133,8 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   useEffect(() => {
     setImageError(false);
     setSlideDir(0);
+    setUseOriginal(false);
+    setDetailLoaded(false);
   }, [item?.path]);
 
   const resetView = useCallback(() => {
@@ -144,17 +192,35 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     }
   }, []);
 
+  // 缩略图条只渲染当前项附近的一段（虚拟化），返回该段的边界
+  const thumbWindow = getThumbWindow(currentIndex, images.length);
+
+  /**
+   * 跳到第 index 张。dir 是滑动动画方向（1=下一张，-1=上一张）。
+   *
+   * 关键点：只有当目标图还没准备好时才显示加载动画。已经预加载好的相邻图
+   * 直接显示 —— 之前的实现无条件 setLoaded(false)，于是每切一张都会先闪一下
+   * spinner，哪怕图片就在浏览器缓存里。
+   */
+  const goTo = useCallback((index, dir) => {
+    const target = images[index];
+    const ready = !!target && target.type === 'image' && readyPaths.current.has(target.path);
+    resetView();
+    setImageError(false);
+    setVideoLoading(!!target && target.type === 'video');
+    setLoaded(ready);
+    setSlideDir(dir ?? (index > currentIndex ? 1 : -1));
+    setTimeout(() => setSlideDir(0), 300);
+    onNavigate(index);
+  }, [images, currentIndex, onNavigate, resetView]);
+
   const goNext = useCallback(() => {
-    setLoaded(false); setVideoLoading(true); resetView();
-    setSlideDir(1); setTimeout(() => setSlideDir(0), 300);
-    onNavigate((currentIndex + 1) % images.length);
-  }, [currentIndex, images.length, onNavigate, resetView]);
+    goTo((currentIndex + 1) % images.length, 1);
+  }, [goTo, currentIndex, images.length]);
 
   const goPrev = useCallback(() => {
-    setLoaded(false); setVideoLoading(true); resetView();
-    setSlideDir(-1); setTimeout(() => setSlideDir(0), 300);
-    onNavigate((currentIndex - 1 + images.length) % images.length);
-  }, [currentIndex, images.length, onNavigate, resetView]);
+    goTo((currentIndex - 1 + images.length) % images.length, -1);
+  }, [goTo, currentIndex, images.length]);
 
   // Slideshow with variable speed
   useEffect(() => {
@@ -165,21 +231,42 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     return () => {};
   }, [slideshow, goNext, isVideo, slideInterval]);
 
-  // Preload adjacent images
+  // Preload the neighbouring previews (±2) and keep the decoded bitmaps alive.
+  // Entries that leave the window are released so memory stays bounded.
   useEffect(() => {
     if (isVideo) return;
-    const toPreload = [];
+    const keep = new Set();
     for (let i = -2; i <= 2; i++) {
       if (i === 0) continue;
       const idx = (currentIndex + i + images.length) % images.length;
-      if (!preloadCache.current.has(idx) && images[idx]?.type === 'image') {
-        preloadCache.current.add(idx);
-        const img = new Image();
-        img.src = getImageUrl(images[idx].path);
-        toPreload.push(img);
-      }
+      const target = images[idx];
+      if (!target || target.type !== 'image') continue;
+      keep.add(target.path);
+      if (preloadedImages.current.has(target.path) || readyPaths.current.has(target.path)) continue;
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        if (preloadedImages.current.get(target.path) === img) readyPaths.current.add(target.path);
+        pruneReadyPaths(readyPaths.current);
+      };
+      img.onerror = () => { preloadedImages.current.delete(target.path); };
+      preloadedImages.current.set(target.path, img);
+      img.src = getPreviewUrl(target.path, previewEdge);
     }
-  }, [currentIndex, images, getImageUrl, isVideo]);
+    for (const [p, img] of preloadedImages.current) {
+      if (keep.has(p)) continue;
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+      preloadedImages.current.delete(p);
+    }
+  }, [currentIndex, images, getPreviewUrl, isVideo, previewEdge]);
+
+  // Release the preload references when the lightbox closes
+  useEffect(() => () => {
+    for (const img of preloadedImages.current.values()) img.src = '';
+    preloadedImages.current.clear();
+  }, []);
 
   // Keyboard
   useEffect(() => {
@@ -492,16 +579,39 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
                 <div className="lightbox-error">
                   <span className="lightbox-error-icon">⚠️</span>
                   <span>图片加载失败</span>
-                  <button className="lb-btn" onClick={() => { setImageError(false); setLoaded(false); }} style={{marginTop:8}}>重试</button>
+                  <button className="lb-btn" onClick={() => { setImageError(false); setLoaded(false); setUseOriginal(false); }} style={{marginTop:8}}>重试</button>
                 </div>
               ) : (
-                <img
-                  src={getImageUrl(item.path)} alt={item.name}
-                  className={`lightbox-image ${loaded ? 'loaded' : ''}`}
-                  onLoad={() => setLoaded(true)}
-                  onError={() => { setImageError(true); setLoaded(true); }}
-                  draggable={false}
-                />
+                <div className="lightbox-image-stack">
+                  <img
+                    src={mainSrc} alt={item.name}
+                    className={`lightbox-image ${loaded ? 'loaded' : ''}`}
+                    onLoad={() => {
+                      // 记住这张已经加载过：下次切回来不用再闪加载动画
+                      readyPaths.current.add(item.path);
+                      pruneReadyPaths(readyPaths.current);
+                      setLoaded(true);
+                    }}
+                    onError={() => {
+                      // 预览图失败先退回原图；原图也失败才算真的坏图
+                      if (!useOriginal && !isVideo) { setUseOriginal(true); return; }
+                      setImageError(true);
+                      setLoaded(true);
+                    }}
+                    draggable={false}
+                    decoding="async"
+                  />
+                  {/* 放大看细节时才叠上原图；没加载完就一直显示预览图，不闪白 */}
+                  {wantDetail && (
+                    <img
+                      src={getImageUrl(item.path)} alt="" aria-hidden="true"
+                      className={`lightbox-image lightbox-image-detail ${detailLoaded ? 'loaded' : ''}`}
+                      onLoad={() => setDetailLoaded(true)}
+                      draggable={false}
+                      decoding="async"
+                    />
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -514,20 +624,31 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
         )}
       </div>
 
-      {/* Thumbnails */}
+      {/* Thumbnails — virtualised: only the window around the active item is
+          rendered, the rest is collapsed into two spacers that keep the scroll
+          width (and therefore the scroll position) identical. */}
       <div className={`lightbox-thumbs${uiVisible ? '' : ' hidden'}`} ref={thumbsRef} onClick={e => e.stopPropagation()}>
-        {images.map((img, i) => (
-          <div key={img.path}
-            className={`lightbox-thumb ${i === currentIndex ? 'active' : ''}`}
-            onClick={() => { setLoaded(false); setVideoLoading(true); resetView(); onNavigate(i); }}>
-            {img.type === 'video'
-              ? <div className="thumb-video-wrap">
-                  <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />
-                  <span className="thumb-play-badge"><img src="/icons/play.svg" alt="" width="10" height="10" /></span>
-                </div>
-              : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" />}
-          </div>
-        ))}
+        {thumbWindow.leading > 0 && (
+          <div className="lightbox-thumb-spacer" style={{ width: thumbWindow.leading }} aria-hidden="true" />
+        )}
+        {images.slice(thumbWindow.start, thumbWindow.end).map((img, offset) => {
+          const i = thumbWindow.start + offset;
+          return (
+            <div key={img.path}
+              className={`lightbox-thumb ${i === currentIndex ? 'active' : ''}`}
+              onClick={() => goTo(i, i > currentIndex ? 1 : -1)}>
+              {img.type === 'video'
+                ? <div className="thumb-video-wrap">
+                    <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" decoding="async" />
+                    <span className="thumb-play-badge"><img src="/icons/play.svg" alt="" width="10" height="10" /></span>
+                  </div>
+                : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" decoding="async" />}
+            </div>
+          );
+        })}
+        {thumbWindow.trailing > 0 && (
+          <div className="lightbox-thumb-spacer" style={{ width: thumbWindow.trailing }} aria-hidden="true" />
+        )}
       </div>
 
       <div className={`lightbox-hints${uiVisible ? '' : ' hidden'}`}>
@@ -606,6 +727,34 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       )}
     </div>
   );
+}
+
+/**
+ * 缩略图条虚拟化：算出要渲染的那一段（并保证 currentIndex 一定在段内）。
+ * 窗口按 THUMB_STEP 对齐，避免每切一张就整体重排。
+ */
+function getThumbWindow(currentIndex, total) {
+  const span = 2 * THUMB_RADIUS + THUMB_STEP;
+  const maxStart = Math.max(0, total - span);
+  const start = Math.max(0, Math.min(
+    Math.floor((currentIndex - THUMB_RADIUS) / THUMB_STEP) * THUMB_STEP,
+    maxStart
+  ));
+  return {
+    start,
+    end: Math.min(total, start + span),
+    leading: start > 0 ? start * THUMB_ITEM_WIDTH - 4 : 0,
+    trailing: total > start + span ? (total - (start + span)) * THUMB_ITEM_WIDTH - 4 : 0
+  };
+}
+
+/** 已加载路径集合：只保留最近 MAX_READY_PATHS 个（Set 保持插入顺序） */
+function pruneReadyPaths(set) {
+  while (set.size > MAX_READY_PATHS) {
+    const oldest = set.values().next();
+    if (oldest.done) break;
+    set.delete(oldest.value);
+  }
 }
 
 function formatFileSize(bytes) {

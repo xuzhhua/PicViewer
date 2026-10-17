@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
+const zlib = require('zlib');
+const crypto = require('crypto');
 
 const foldersRouter = require('./routes/folders');
 const browseRouter = require('./routes/browse');
@@ -13,6 +15,7 @@ const actionsRouter = require('./routes/actions');
 const deleteRouter = require('./routes/delete');
 const cache = require('./services/cache');
 const { readConfig } = require('./paths');
+const { jsonCompression } = require('./middleware/jsonCompression');
 
 const app = express();
 
@@ -27,6 +30,8 @@ function getPort() {
 // Middleware
 app.use(cors());
 app.use(express.json());
+// JSON 响应 gzip + ETag/304（远程访问时目录列表的流量大头）
+app.use(jsonCompression());
 
 // API routes
 app.use('/api/folders', foldersRouter);
@@ -87,6 +92,12 @@ function startServer(port) {
         console.log(`LAN access:  http://${getLocalIP()}:${p}`);
         resolve({ server, port: p });
       });
+
+      // 远程/移动网络下，一张图一个 TCP 握手太贵。Node 默认 5 秒就断开空闲
+      // 长连接，浏览时人一停顿连接就没了；这里放宽到 65 秒（要大于常见反向
+      // 代理的 60 秒空闲超时，避免代理先断开导致的竞态）。
+      server.keepAliveTimeout = 65 * 1000;
+      server.headersTimeout = 66 * 1000;
 
       server.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
