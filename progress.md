@@ -1,5 +1,42 @@
 # PicViewer - 进度日志
 
+## 2026-10-19（同名文件替换后缩略图 / 大图不刷新）
+
+现象：有一张图 A 已生成过缩略图；删掉 A 之后放入另一张图 B，**文件名和 A 完全相同**，
+缩略图和灯箱大图都还是旧的（既不换图也不报错，像被“钉死”了）。
+
+两个同时存在的根因：
+
+1. **服务端缓存键只含源路径**（`server/services/cache.js`）。缩略图名是
+   `<md5(路径)>__<size>__<fit>.jpg`，是否过期靠 `cacheStat.mtime > fileStat.mtime`。
+   B 如果是从相机 / 压缩包 / 网络盘拷进来的，mtime 往往**比旧缓存还旧**，于是
+   旧缓存永远“看起来更新” → 永久命中。
+2. **浏览器 HTTP 缓存**（`Cache-Control: max-age=86400`，预览图 7 天）。URL 只由路径构成，
+   文件换了 URL 没变，浏览器在有效期内根本不回服务器 —— 所以即使服务端修好了，
+   浏览器还是会显示旧图，直到手动强刷。
+
+改动：
+
+- 新增 `server/utils/cacheKey.js`（纯函数，便于单测）：`sourceFingerprint(stat)` =
+  `<mtimeMs>-<size>`，缓存文件名改为 `<md5(路径)>__<size>__<fit>__<mtime>-<bytes>.jpg`，
+  预览图同理。命中条件从「比源文件新」变成「文件名完全一致」，与写入先后无关；
+  旧的无指纹缓存不再匹配，由下次启动 sweep 回收（升级后缩略图会重新生成一遍）。
+- `server/services/image.js`：4 处 `cacheStat.mtime > fileStat.mtime` 判断全部删除
+  （缩略图 / 视频缩略图 / DICOM 缩略图 / 预览图）；所有 `getCacheKey` 调用都传入
+  `fs.stat()` 结果。
+- `server/services/cache.js`：`removeSourcesCache()` 现在也清 `cache/previews`
+  （删文件后预览图立刻回收，不必等 sweep）；`enforceCap()` 淘汰时顺带删 `.broken` 标记。
+- 客户端新增 `client/src/utils/mediaUrl.js` 的 `mediaVersion(item)`（= `mtime-size`），
+  拼进缩略图 / 预览图 / 原图的 URL（`&v=`）。文件内容一变 URL 就变，浏览器必须重取；
+  文件没变 URL 不变，缓存照常命中。覆盖 `ImageGrid.jsx`、`Lightbox.jsx`（主图、预加载、
+  缩略图条、放大叠加的原图、视频、下载）、`App.jsx`（新标签页打开、复制图片）。
+- 单测新增 `tests/cacheKeys.test.js`（7 项）与 `tests/mediaUrl.test.mjs`（5 项），
+  均含「同名文件替换且 mtime 更旧」的回归用例；`npm test` 现为 12 个文件 96 项。
+
+验证：隔离实例 E2E 21/21 —— 用 A 生成缓存后，用 B 覆盖 `a.jpg` 并把 mtime 回拨到 2020 年，
+同一 URL 的缩略图 / 预览图 / 原图内容与 ETag 全部更新；带旧 ETag 条件请求回 200（不是 304），
+带当前 ETag 回 304；新旧两份指纹缓存互不覆盖；浏览条目的 size/mtime 变化使客户端版本号变化。
+
 ## 2026-10-17（移除内置令牌鉴权：改由前置反向代理负责）
 
 起因：令牌方案要求带 `?token=` 打开，用户在 PicViewer 前面已经部署了 Authentik，

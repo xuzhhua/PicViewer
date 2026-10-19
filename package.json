@@ -9,7 +9,7 @@
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "start": "node server/index.js",
-    "test": "node tests/limiter.test.js && node tests/mergeBrowse.test.mjs && node tests/metaCache.test.js && node tests/httpCache.test.js && node tests/jsonCompression.test.js && node tests/previewParams.test.js && node tests/thumbParams.test.js && node tests/range.test.js && node tests/pathGuard.test.js && node tests/cors.test.js",
+    "test": "node tests/limiter.test.js && node tests/mergeBrowse.test.mjs && node tests/metaCache.test.js && node tests/httpCache.test.js && node tests/jsonCompression.test.js && node tests/previewParams.test.js && node tests/thumbParams.test.js && node tests/range.test.js && node tests/pathGuard.test.js && node tests/cors.test.js && node tests/cacheKeys.test.js && node tests/mediaUrl.test.mjs",
     "setup": "npm install && cd client && npm install",
     "electron": "electron .",
     "electron:dev": "npm run build && electron .",

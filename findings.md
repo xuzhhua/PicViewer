@@ -75,6 +75,18 @@
 - **淘汰按「最近最少使用」**，用 `max(atime, mtime)`；Windows 常关闭 atime 更新，此时退化为「最久未写入」，仍是正确的淘汰端。删除 `.jpg` 时连带删除同名 `.broken` 标记，避免标记与文件状态不一致
 - **淘汰需有 60 秒保护期**：刚写入的缓存可能仍在向客户端流式传输，立即删除会打断响应
 - 定期维护（6 小时）用 `unref()` 的定时器，不阻止进程退出；`init()` 不阻塞启动
+- **缓存键必须含源文件「内容指纹」（mtime+size），不能用「缓存比源文件新」判过期**。
+  旧写法 `cacheStat.mtime > fileStat.mtime` 在「删掉 a.jpg 再放一张同名的新 a.jpg」时失效：
+  从相机/压缩包/网络盘拷来的文件 mtime 常常**比旧缓存更旧**，旧缓存永远“更新”，
+  缩略图/预览图永久停在上一张上。现在文件名是
+  `<md5(路径)>__<size>__<fit>__<mtimeMs>-<bytes>.jpg`，命中 = 文件名完全一致（见
+  `server/utils/cacheKey.js`，纯函数有单测）。代价：升级后旧命名全部失配，会被 sweep 回收
+  （缩略图重新生成一遍）；源文件一改就换新键，旧键由 LRU/sweep 回收，不会无限增长
+- **服务端换了内容，浏览器也未必会来取**：缩略图 `max-age=86400`、预览图 7 天，URL 只由路径
+  构成时浏览器在有效期内不回服务器。所以客户端还要把内容版本拼进 URL
+  （`client/src/utils/mediaUrl.js` 的 `mediaVersion()` → `&v=<mtimeMs>-<size>`）。
+  服务端缓存键修的是「不会再算出旧图」，URL 版本化修的是「浏览器根本不来问」
+- 淘汰时「删 `.jpg` 连带删 `.broken`」要泛化到所有产物（预览图没有扩展名），否则标记文件残留
 
 ### 安全加固
 - `isPathAllowed()` 必须检查 `normalized === rootNorm || normalized.startsWith(rootNorm + path.sep)`

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useApi from '../hooks/useApi';
+import { mediaVersion } from '../utils/mediaUrl';
 import './Lightbox.css';
 
 const MIN_ZOOM = 0.5;
@@ -111,13 +112,15 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const item = images[currentIndex];
   if (!item) { onClose(); return null; }
   const isVideo = item.type === 'video';
+  // 内容版本：同名文件被替换后 URL 随之变化，浏览器/服务端都不会再吐旧图
+  const version = mediaVersion(item);
 
   // 主图用「按屏幕算出来的预览图」，放大到超过 1.25x 才在它上面叠一张原图。
   const previewEdge = isVideo ? 0 : getPreviewEdge();
   const wantDetail = !isVideo && !useOriginal && zoom >= DETAIL_ZOOM;
   const mainSrc = isVideo || useOriginal
-    ? getImageUrl(item.path)
-    : getPreviewUrl(item.path, previewEdge);
+    ? getImageUrl(item.path, version)
+    : getPreviewUrl(item.path, previewEdge, version);
 
   // Set video loading state when item changes
   useEffect(() => {
@@ -163,14 +166,14 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const handleDownload = useCallback(() => {
     if (isVideo) {
       const a = document.createElement('a');
-      a.href = getImageUrl(item.path);
+      a.href = getImageUrl(item.path, version);
       a.download = item.name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     } else {
       // For images, use fetch to force download
-      fetch(getImageUrl(item.path))
+      fetch(getImageUrl(item.path, version))
         .then(r => r.blob())
         .then(blob => {
           const url = URL.createObjectURL(blob);
@@ -181,7 +184,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
           URL.revokeObjectURL(url);
         }).catch(() => {});
     }
-  }, [item, getImageUrl, isVideo]);
+  }, [item, version, getImageUrl, isVideo]);
 
   // Browser fullscreen toggle
   const toggleFullscreen = useCallback(() => {
@@ -251,7 +254,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       };
       img.onerror = () => { preloadedImages.current.delete(target.path); };
       preloadedImages.current.set(target.path, img);
-      img.src = getPreviewUrl(target.path, previewEdge);
+      img.src = getPreviewUrl(target.path, previewEdge, mediaVersion(target));
     }
     for (const [p, img] of preloadedImages.current) {
       if (keep.has(p)) continue;
@@ -559,7 +562,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
               )}
               <video key={item.path} ref={videoRef}
                 className={`lightbox-video ${!videoLoading ? 'loaded' : ''}`}
-                src={getImageUrl(item.path)} controls autoPlay playsInline
+                src={getImageUrl(item.path, version)} controls autoPlay playsInline
                 onLoadedData={() => { setLoaded(true); setVideoLoading(false); }}
                 onError={() => setVideoLoading(false)} />
             </div>
@@ -604,7 +607,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
                   {/* 放大看细节时才叠上原图；没加载完就一直显示预览图，不闪白 */}
                   {wantDetail && (
                     <img
-                      src={getImageUrl(item.path)} alt="" aria-hidden="true"
+                      src={getImageUrl(item.path, version)} alt="" aria-hidden="true"
                       className={`lightbox-image lightbox-image-detail ${detailLoaded ? 'loaded' : ''}`}
                       onLoad={() => setDetailLoaded(true)}
                       draggable={false}
@@ -639,10 +642,10 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
               onClick={() => goTo(i, i > currentIndex ? 1 : -1)}>
               {img.type === 'video'
                 ? <div className="thumb-video-wrap">
-                    <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" decoding="async" />
+                    <img src={getThumbnailUrl(img.path, 128, 'cover', false, mediaVersion(img))} alt="" loading="lazy" decoding="async" />
                     <span className="thumb-play-badge"><img src="/icons/play.svg" alt="" width="10" height="10" /></span>
                   </div>
-                : <img src={getThumbnailUrl(img.path, 128, 'cover')} alt="" loading="lazy" decoding="async" />}
+                : <img src={getThumbnailUrl(img.path, 128, 'cover', false, mediaVersion(img))} alt="" loading="lazy" decoding="async" />}
             </div>
           );
         })}

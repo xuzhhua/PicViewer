@@ -192,23 +192,26 @@ export default function useApi() {
   }, [fetchFolders]);
 
   // Get thumbnail URL (refresh=1 forces the server to regenerate the cached thumbnail)
-  const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover', refresh = false) => {
+  // version 是内容版本（见 utils/mediaUrl.js）：同名文件被替换后 URL 会变，
+  // 浏览器那层 HTTP 缓存才不会继续吐出上一张图。
+  const getThumbnailUrl = useCallback((filePath, size = 256, fit = 'cover', refresh = false, version = '') => {
     const encoded = encodePath(filePath);
     let url = `/api/image/thumbnail?path=${encoded}&size=${size}&fit=${fit}`;
     if (refresh) url += '&refresh=1';
+    if (version) url += `&v=${encodeURIComponent(version)}`;
     return url;
   }, []);
 
   // Get original image URL
-  const getImageUrl = useCallback((filePath) => {
+  const getImageUrl = useCallback((filePath, version = '') => {
     const encoded = encodePath(filePath);
-    return `/api/image/view?path=${encoded}`;
+    return `/api/image/view?path=${encoded}${version ? `&v=${encodeURIComponent(version)}` : ''}`;
   }, []);
 
   // Get lightbox preview URL (长边压缩版，服务端落盘缓存；比原图小一个数量级)
-  const getPreviewUrl = useCallback((filePath, maxEdge = 1920) => {
+  const getPreviewUrl = useCallback((filePath, maxEdge = 1920, version = '') => {
     const encoded = encodePath(filePath);
-    return `/api/image/preview?path=${encoded}&w=${maxEdge}`;
+    return `/api/image/preview?path=${encoded}&w=${maxEdge}${version ? `&v=${encodeURIComponent(version)}` : ''}`;
   }, []);
 
   // Open native folder picker

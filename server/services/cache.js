@@ -18,8 +18,16 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { readData } = require('../data/store');
+const {
+  pathHash,
+  thumbnailName,
+  previewName,
+  transcodeName,
+  THUMB_RE,
+  TRANSCODE_RE,
+  PREVIEW_RE
+} = require('../utils/cacheKey');
 const {
   CACHE_DIR,
   THUMBNAILS_DIR,
@@ -35,13 +43,10 @@ const THUMB_DIR = THUMBNAILS_DIR;
 const TRANSCODE_DIR = TRANSCODES_DIR;
 const PREVIEW_DIR = PREVIEWS_DIR;
 
-// New-scheme filenames. Anything that does not match is a leftover from the
-// previous scheme (<hash>.jpg / <hash>.mp4), which can never be hit again and is
-// therefore reclaimed by the sweep.
-const THUMB_RE = /^([0-9a-f]{32})__(\d+)__(?:cover|inside)\.jpg(?:\.broken)?$/;
-const TRANSCODE_RE = /^([0-9a-f]{32})__(\d+)\.mp4$/;
-// 预览图按「最大边长 + 输出格式」区分（带透明通道的图输出 webp，其余 jpg）
-const PREVIEW_RE = /^([0-9a-f]{32})__(\d+)__(?:jpg|webp)(?:\.broken)?$/;
+// New-scheme filenames live in utils/cacheKey.js (pure, unit-tested). Anything
+// that does not match is a leftover from an older scheme and is reclaimed by the
+// sweep. Cache filenames embed the source file's mtime+size, so a file that is
+// replaced by a same-named one can never hit the previous artifact.
 
 const DEFAULT_THUMB_CAP_MB = 1024;
 const DEFAULT_TRANSCODE_CAP_MB = 2048;
@@ -60,9 +65,7 @@ let exitHookInstalled = false;
 // equivalent-but-different spelling (doubled separators, `..`, trailing sep), and
 // `fs` operations collapse those via path.normalize() — so without normalizing
 // here, a delete would successfully unlink the file yet silently miss its cache.
-function pathHash(p) {
-  return crypto.createHash('md5').update(path.normalize(p)).digest('hex');
-}
+// (pathHash itself lives in utils/cacheKey.js.)
 
 function ensureDirs() {
   for (const dir of [CACHE_ROOT, THUMB_DIR, TRANSCODE_DIR, PREVIEW_DIR]) {
@@ -88,21 +91,21 @@ function caps() {
 
 // --- cache paths ---
 
-function thumbnailFile(filePath, size, fit = 'cover') {
-  return path.join(THUMB_DIR, `${pathHash(filePath)}__${size}__${fit}.jpg`);
+/** 缩略图缓存路径。必须传 `fs.stat()` 结果：文件名里带源文件指纹。 */
+function thumbnailFile(filePath, size, fit, stat) {
+  return path.join(THUMB_DIR, thumbnailName(filePath, size, fit, stat));
 }
 
 function transcodeFile(filePath, mtimeMs) {
-  return path.join(TRANSCODE_DIR, `${pathHash(filePath)}__${Math.round(mtimeMs)}.mp4`);
+  return path.join(TRANSCODE_DIR, transcodeName(filePath, mtimeMs));
 }
 
 /**
  * 灯箱预览图的缓存路径。maxEdge 是「最大边长」而不是固定正方形——
  * 预览图保持原图比例，只把长边限制在 maxEdge 以内。
  */
-function previewFile(filePath, maxEdge, format = 'jpg') {
-  const ext = format === 'webp' ? 'webp' : 'jpg';
-  return path.join(PREVIEW_DIR, `${pathHash(filePath)}__${maxEdge}__${ext}`);
+function previewFile(filePath, maxEdge, format, stat) {
+  return path.join(PREVIEW_DIR, previewName(filePath, maxEdge, format, stat));
 }
 
 // --- registry ---
@@ -169,7 +172,7 @@ async function removeSourcesCache(filePaths) {
   scheduleRegistryFlush();
 
   let removed = 0;
-  for (const dir of [THUMB_DIR, TRANSCODE_DIR]) {
+  for (const dir of [THUMB_DIR, TRANSCODE_DIR, PREVIEW_DIR]) {
     let names;
     try {
       names = await fs.readdir(dir);
@@ -307,8 +310,8 @@ async function enforceCap(dir, cap) {
     total -= f.size;
     freed += f.size;
     removed++;
-    // A .broken marker is only meaningful next to its jpg
-    if (f.name.endsWith('.jpg')) {
+    // A .broken marker is only meaningful next to its artifact
+    if (!f.name.endsWith('.broken')) {
       try {
         await fs.unlink(path.join(dir, f.name + '.broken'));
       } catch (_) { /* no marker */ }

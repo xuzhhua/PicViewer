@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import useApi from '../hooks/useApi';
+import { mediaVersion } from '../utils/mediaUrl';
 import './ImageGrid.css';
 
 function formatSize(bytes) {
@@ -166,8 +167,9 @@ function MediaCard({ item, index, onClick, getThumbnailUrl, viewMode, isSelected
     }
   }
 
-  // Compose src — once manually refreshed (rev > 0), force server regen + bust browser cache
-  const thumbSrc = getThumbnailUrl(item.path, sharpSize, sharpFit, rev > 0) + (rev > 0 ? `&rev=${rev}` : '');
+  // Compose src — version 让「同名文件被替换」后自动换 URL（绕过浏览器缓存）；
+  // 手动刷新（rev > 0）另外强制服务端重生成 + 再 bust 一次
+  const thumbSrc = getThumbnailUrl(item.path, sharpSize, sharpFit, rev > 0, mediaVersion(item)) + (rev > 0 ? `&rev=${rev}` : '');
 
   // Mobile long-press (~500ms) opens the same context menu (desktop right-click unchanged)
   const lpRef = useRef({ timer: null, startX: 0, startY: 0, triggered: false });

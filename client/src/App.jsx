@@ -7,6 +7,7 @@ import IgnoredFolders from './components/IgnoredFolders';
 import ConfirmDialog from './components/ConfirmDialog';
 import UpdateToast from './components/UpdateToast';
 import useApi from './hooks/useApi';
+import { mediaVersion } from './utils/mediaUrl';
 import { checkForUpdate } from './pwa';
 import './App.css';
 
@@ -775,7 +776,7 @@ export default function App() {
           <div className="context-item" onClick={() => {
             const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path)))
               .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-            window.open(`/api/image/view?path=${enc}`, '_blank');
+            window.open(`/api/image/view?path=${enc}&v=${encodeURIComponent(mediaVersion(contextMenu.item))}`, '_blank');
             setContextMenu(null);
           }}><img src="/icons/chain.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 新标签页打开</div>
           <div className="context-item" onClick={() => { addFavorite(contextMenu.item); setContextMenu(null); }}><img src="/icons/star.svg" alt="" width="14" height="14" style={{verticalAlign:'middle',marginRight:6}} /> 添加到收藏</div>
@@ -784,7 +785,7 @@ export default function App() {
             <div className="context-item copy-image-item" onClick={async () => {
               try {
                 const enc = btoa(String.fromCharCode(...new TextEncoder().encode(contextMenu.item.path))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-                const img = await fetch(`/api/image/view?path=${enc}`).then(r => r.blob());
+                const img = await fetch(`/api/image/view?path=${enc}&v=${encodeURIComponent(mediaVersion(contextMenu.item))}`).then(r => r.blob());
                 await navigator.clipboard.write([new ClipboardItem({ [img.type]: img })]);
               } catch (_) {}
               setContextMenu(null);

@@ -97,8 +97,8 @@ function streamToResponse(source, res, label) {
 
 // Cache path for a thumbnail. The md5(source path) prefix is what lets the cache
 // service find (and drop) every artifact of a source file by prefix — see cache.js.
-function getCacheKey(filePath, size, fit = 'cover') {
-  return cache.thumbnailFile(filePath, size, fit);
+function getCacheKey(filePath, size, fit, stat) {
+  return cache.thumbnailFile(filePath, size, fit, stat);
 }
 
 // Transcode browser-incompatible video to MP4 (H.264 + AAC) on-the-fly
@@ -373,21 +373,20 @@ async function servePreview(filePath, res, opts = {}) {
   // 带透明通道的图用 webp（jpeg 会把透明区域变成黑/白底）
   const format = meta.hasAlpha ? 'webp' : 'jpg';
   const contentType = format === 'webp' ? 'image/webp' : 'image/jpeg';
-  const cacheKey = cache.previewFile(filePath, maxEdge, format);
+  const cacheKey = cache.previewFile(filePath, maxEdge, format, fileStat);
 
   // 放在生成之前：浏览器已经有这张预览图时，一个 304 就结束，不跑 sharp
   if (applyFreshness(res.req, res, fileStat, PREVIEW_CACHE_CONTROL)) return;
 
   cache.registerSource(filePath);
 
-  // 磁盘缓存命中：直接从本地盘流出去
+  // 磁盘缓存命中：直接从本地盘流出去。键里已含源文件指纹（mtime+体积），
+  // 命中即可信，不需要再比较新旧。
   try {
     const cacheStat = await fs.stat(cacheKey);
-    if (cacheStat.mtime > fileStat.mtime) {
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Length', cacheStat.size);
-      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
-    }
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', cacheStat.size);
+    return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
   } catch (e) { /* cache miss */ }
 
   try {
@@ -413,15 +412,13 @@ async function servePreview(filePath, res, opts = {}) {
 
 // Extract a video frame as thumbnail using ffmpeg, with caching
 async function serveVideoThumbnail(filePath, size, cacheKey, res, fileStat) {
-  // Check cache first
+  // Check cache first (键里含源文件指纹，命中即可信)
   try {
     const cacheStat = await fs.stat(cacheKey);
-    if (cacheStat.mtime > fileStat.mtime) {
-      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
-      res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Content-Length', cacheStat.size);
-      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
-    }
+    if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', cacheStat.size);
+    return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
   } catch (e) { /* cache miss */ }
 
   // 浏览器手里已有这张帧缩略图时不必再跑 ffmpeg
@@ -521,10 +518,10 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   const fileStat = await fs.stat(filePath);
   cache.registerSource(filePath);
 
-  // Force refresh: drop the cached thumbnail (+broken marker) for this size/fit
-  // so it is regenerated on this request (used by the “刷新缩略图” context action)
+  // Force refresh: 让本次请求跳过缓存直接重新生成（“刷新缩略图”右键动作）。
+  // 键里带源文件指纹，所以这里删的就是「当前内容」对应的那一份。
   if (opts.refresh) {
-    const staleKey = getCacheKey(filePath, thumbSize, thumbFit);
+    const staleKey = getCacheKey(filePath, thumbSize, thumbFit, fileStat);
     try { await fs.unlink(staleKey); } catch (_) { /* no cache file */ }
     try { await fs.unlink(staleKey + '.broken'); } catch (_) { /* no broken marker */ }
   }
@@ -532,7 +529,7 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
   // Video thumbnail — extract frame via ffmpeg
   const ext = path.extname(filePath).toLowerCase();
   if (VIDEO_EXTENSIONS.includes(ext)) {
-    const cacheKey = getCacheKey(filePath, thumbSize, thumbFit);
+    const cacheKey = getCacheKey(filePath, thumbSize, thumbFit, fileStat);
     return serveVideoThumbnail(filePath, thumbSize, cacheKey, res, fileStat);
   }
 
@@ -541,19 +538,16 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
     return serveDicomThumbnail(filePath, thumbSize, thumbFit, res, fileStat);
   }
 
-  const cacheKey = getCacheKey(filePath, thumbSize, thumbFit);
+  const cacheKey = getCacheKey(filePath, thumbSize, thumbFit, fileStat);
 
-  // Check cache first
+  // Check cache first — 键里已含源文件指纹，命中即可信（不再比较 mtime 先后，
+  // 否则「删掉 a.jpg 再放一张同名但 mtime 更旧的 a.jpg」会永久命中旧缩略图）
   try {
     const cacheStat = await fs.stat(cacheKey);
-
-    // If cache is newer than original file, serve from cache
-    if (cacheStat.mtime > fileStat.mtime) {
-      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
-      res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Content-Length', cacheStat.size);
-      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
-    }
+    if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', cacheStat.size);
+    return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
   } catch (e) {
     // Cache miss or error, generate new thumbnail
   }
@@ -597,17 +591,15 @@ async function serveThumbnail(filePath, size, fit, res, opts = {}) {
 
 // Generate DICOM thumbnail with caching
 async function serveDicomThumbnail(filePath, size, fit, res, fileStat) {
-  const cacheKey = getCacheKey(filePath, size, fit);
+  const cacheKey = getCacheKey(filePath, size, fit, fileStat);
 
-  // Check cache
+  // Check cache（键含源文件指纹，命中即可信）
   try {
     const cacheStat = await fs.stat(cacheKey);
-    if (cacheStat.mtime > fileStat.mtime) {
-      if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
-      res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Content-Length', cacheStat.size);
-      return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
-    }
+    if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', cacheStat.size);
+    return streamToResponse(fsSync.createReadStream(cacheKey), res, path.basename(cacheKey));
   } catch (e) { /* cache miss */ }
 
   if (applyFreshness(res.req, res, fileStat, 'public, max-age=86400')) return;
