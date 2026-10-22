@@ -308,6 +308,7 @@ LAN access:  http://192.168.1.5:18093
 ```
 PicViewer/
 ├── start.bat
+├── LICENSE                    # GPL-3.0 许可证全文
 ├── package.json
 ├── electron-main.js          # Electron 桌面客户端主进程
 ├── server/
@@ -353,6 +354,7 @@ PicViewer/
             ├── Lightbox         # 全屏灯箱 + 预加载 + 旋转
             ├── SearchBar        # 搜索框
             ├── ConfirmDialog    # 通用确认弹窗（删除等确认）
+            ├── AboutDialog      # 关于 / 许可证 / 版权声明
             └── IgnoredFolders   # 忽略文件夹面板
 ```
 
@@ -396,4 +398,30 @@ PicViewer/
 
 ## 📝 许可证
 
-MIT
+本项目以 **GNU Affero General Public License v3.0**（`AGPL-3.0-or-later`）发布。
+
+Copyright (C) 2026 xuzhhua
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+完整协议文本见 [LICENSE](./LICENSE)。要点：
+
+- 你可以自由使用、修改、分发本软件（包括商用），但**分发修改版或打包后的 Electron 应用时必须同样以 AGPL 开源**，并向接收者提供对应源码。
+- **AGPL 第 13 条（相较 GPL 的关键区别）**：如果你修改本程序并让它**通过网络对外提供服务**，必须向该服务的使用者提供对应的完整源代码（例如在界面上给出源码地址）。数据库/图片只留在本机自用不受影响。
+- 本软件不提供任何担保，作者不对使用后果负责。
+- 界面左下角的「ⓘ 关于」按钮展示版权、许可证与免责声明（GPL/AGPL 要求的 Appropriate Legal Notices），并给出许可全文与源码仓库地址。
+- 第三方依赖分别遵循其自身许可（MIT / ISC / Apache-2.0 等），均与 AGPL-3.0 兼容；`sharp` 是 Apache-2.0，这也是不选 GPL-2.0 的原因之一。
+- 如果只想允许「仅 v3」而不接受未来的 AGPLv4，可把 `package.json` 的 `license` 与本节改为 `AGPL-3.0-only`；当前为 `AGPL-3.0-or-later`。
+
+

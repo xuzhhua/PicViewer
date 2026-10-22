@@ -5,6 +5,7 @@ import Lightbox from './components/Lightbox';
 import SearchBar from './components/SearchBar';
 import IgnoredFolders from './components/IgnoredFolders';
 import ConfirmDialog from './components/ConfirmDialog';
+import AboutDialog from './components/AboutDialog';
 import UpdateToast from './components/UpdateToast';
 import useApi from './hooks/useApi';
 import { mediaVersion } from './utils/mediaUrl';
@@ -95,6 +96,8 @@ export default function App() {
   const [zoomHint, setZoomHint] = useState('');
   const zoomTimerRef = React.useRef(null);
   const [favorites, setFavorites] = useState([]);
+  // 关于对话框（含版权 / 许可证 / 免责声明 —— GPL/AGPL 的 "Appropriate Legal Notices"）
+  const [aboutOpen, setAboutOpen] = useState(false);
   const isRecursive = viewMode === 'all';
 
   React.useEffect(() => {
@@ -618,6 +621,14 @@ export default function App() {
           >
             <img src={theme === 'dark' ? '/icons/moon.svg' : '/icons/sun.svg'} alt="" width="18" height="18" />
           </button>
+          <button
+            className="footer-btn"
+            onClick={() => setAboutOpen(true)}
+            title="关于 / 许可证"
+            aria-label="关于与许可证"
+          >
+            <img src="/icons/info.svg" alt="" width="18" height="18" />
+          </button>
         </div>
       </aside>
 
@@ -850,6 +861,9 @@ export default function App() {
           onCancel={() => setPendingPermanent(null)}
         />
       )}
+
+      {/* 关于 / 许可证 / 版权声明 */}
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       {/* PWA 新版本提示条 */}
       <UpdateToast />

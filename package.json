@@ -2,6 +2,12 @@
   "name": "picviewer",
   "version": "1.0.0",
   "description": "Web-based local image browser with network drive support",
+  "author": "xuzhhua <xuzhhua@msn.com>",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xuzhhua/PicViewer.git"
+  },
   "main": "electron-main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -25,6 +31,7 @@
       "output": "dist-electron"
     },
     "files": [
+      "LICENSE",
       "electron-main.js",
       "server/**/*",
       "!server/cache/**",
