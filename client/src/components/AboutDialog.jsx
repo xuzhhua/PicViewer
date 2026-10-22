@@ -6,14 +6,14 @@ import './AboutDialog.css';
 /* global __APP_VERSION__, __APP_REPOSITORY__ */
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
 const APP_REPOSITORY = typeof __APP_REPOSITORY__ !== 'undefined' ? __APP_REPOSITORY__ : '';
-const LICENSE_URL = 'https://www.gnu.org/licenses/agpl-3.0.txt';
+const LICENSE_URL = 'https://opensource.org/license/mit';
 
 /**
  * 关于 / 许可证对话框。
  *
- * GPL-3.0 与 AGPL-3.0 都要求「交互式界面显示 Appropriate Legal Notices」：
- * 版权声明、无担保声明、以及如何查看许可证全文。AGPL 第 13 条另有网络使用
- * 时提供对应源码的义务，所以这里同时给出仓库地址（即源代码位置）。
+ * MIT 只要求「在软件的副本或实质性部分中保留版权声明与许可声明」，并不要求在
+ * 界面上展示 —— 这里的声明因此是纯便利性的（让使用者随手能看到版本、版权和
+ * 许可证全文入口）。若要严格合规，源码/打包产物里的 LICENSE 文件才是必需项。
  */
 export default function AboutDialog({ open = false, onClose }) {
   useEffect(() => {
@@ -45,22 +45,18 @@ export default function AboutDialog({ open = false, onClose }) {
         <p className="confirm-message">本地图片 / 视频浏览器（Electron + Express + React）</p>
 
         <div className="about-legal">
-          <p className="about-copyright">Copyright (C) 2026 xuzhhua</p>
+          <p className="about-copyright">Copyright (c) 2026 xuzhhua</p>
           <p>
-            本程序是自由软件：你可以再分发和/或修改它，但须遵守
-            <strong> GNU Affero 通用公共许可证第 3 版</strong>（或你选择的任何更高版本）的条款。
+            本程序以 <strong>MIT License</strong> 发布：你可以自由使用、修改、分发、商用，
+            甚至闭源再发布，<strong>唯一义务是保留本版权声明与许可声明</strong>。
           </p>
           <p>
-            本程序<strong>不提供任何担保</strong>，包括适销性或特定用途适用性的默示担保。
-            详见许可证第 15、16 条。
-          </p>
-          <p>
-            若你修改本程序并通过网络向他人提供服务，必须向使用者提供对应的完整源代码
-            （AGPL 第 13 条）。
+            本程序按「现状」提供，<strong>不附带任何明示或默示担保</strong>，
+            包括适销性、特定用途适用性与非侵权担保。
           </p>
           <p>
             许可证全文：
-            <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer">gnu.org/licenses/agpl-3.0.txt</a>
+            <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer">opensource.org/license/mit</a>
             {APP_REPOSITORY && (
               <>
                 {' · '}源代码：

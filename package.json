@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Web-based local image browser with network drive support",
   "author": "xuzhhua <xuzhhua@msn.com>",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/xuzhhua/PicViewer.git"

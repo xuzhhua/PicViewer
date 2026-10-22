@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "PicViewer web client (React + Vite)",
   "author": "xuzhhua <xuzhhua@msn.com>",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

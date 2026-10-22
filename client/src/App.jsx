@@ -96,7 +96,7 @@ export default function App() {
   const [zoomHint, setZoomHint] = useState('');
   const zoomTimerRef = React.useRef(null);
   const [favorites, setFavorites] = useState([]);
-  // 关于对话框（含版权 / 许可证 / 免责声明 —— GPL/AGPL 的 "Appropriate Legal Notices"）
+  // 关于对话框（版本 / 版权 / MIT 许可声明，见 AboutDialog.jsx）
   const [aboutOpen, setAboutOpen] = useState(false);
   const isRecursive = viewMode === 'all';
 
