@@ -68,6 +68,8 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const videoRef = useRef(null);
   const uiTimerRef = useRef(null);
   const contentRef = useRef(null);
+  // 详情面板是否打开（给定时器/键盘回调同步读取，避免闭包拿到旧值）
+  const showInfoRef = useRef(false);
 
   // Refs to keep latest values for synchronous access in event handlers
   const zoomRef = useRef(1);
@@ -80,12 +82,22 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const resetUiTimer = useCallback(() => {
     setUiVisible(true);
     if (uiTimerRef.current) clearTimeout(uiTimerRef.current);
-    uiTimerRef.current = setTimeout(() => setUiVisible(false), 3000);
+    uiTimerRef.current = setTimeout(() => {
+      // 详情面板打开时保持顶栏可见。否则手机上顶栏一淡出，用户就找不到
+      // 任何关闭入口了（面板本身也盖住了按钮区域）。
+      if (!showInfoRef.current) setUiVisible(false);
+    }, 3000);
   }, []);
   useEffect(() => {
     resetUiTimer();
     return () => { if (uiTimerRef.current) clearTimeout(uiTimerRef.current); };
   }, [currentIndex]); // eslint-disable-line
+
+  // 打开/关闭详情面板时刷新顶栏计时器：打开就亮起并暂停自动隐藏，关闭后重新计时
+  useEffect(() => {
+    showInfoRef.current = showInfo;
+    resetUiTimer();
+  }, [showInfo, resetUiTimer]);
 
   // Thumbnail strip auto-scroll
   useEffect(() => {
@@ -277,7 +289,11 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (keyboardDisabled) return;
       switch (e.key) {
-        case 'Escape': onClose(); break;
+        case 'Escape':
+          // 面板开着时先关面板，再按一次才关灯箱
+          if (showInfoRef.current) setShowInfo(false);
+          else onClose();
+          break;
         case 'Delete':
           e.preventDefault();
           onDeleteRequest?.(item);
@@ -668,63 +684,71 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
 
       {/* Info panel */}
       {showInfo && (
-        <div className="lightbox-info-panel" onClick={e => e.stopPropagation()}>
-          <h4><img src="/icons/note.svg" alt="" width="16" height="16" style={{verticalAlign:'middle',marginRight:6}} /> 媒体信息</h4>
-          <div className="info-grid">
-            <span className="info-label">文件名</span>
-            <span className="info-value">{item.name}</span>
+        <div className="lightbox-info-panel" onClick={e => e.stopPropagation()} role="dialog" aria-label="媒体信息">
+          <div className="info-panel-header">
+            <h4><img src="/icons/note.svg" alt="" width="16" height="16" />媒体信息</h4>
+            <button className="lb-btn info-panel-close" onClick={() => setShowInfo(false)}
+              title="关闭详细信息 (Esc)" aria-label="关闭详细信息">
+              <img src="/icons/close.svg" alt="" width="16" height="16" />
+            </button>
+          </div>
+          <div className="info-panel-body">
+            <div className="info-grid">
+              <span className="info-label">文件名</span>
+              <span className="info-value">{item.name}</span>
 
-            <span className="info-label">类型</span>
-            <span className="info-value">{isVideo ? '视频' : '图片'}</span>
+              <span className="info-label">类型</span>
+              <span className="info-value">{isVideo ? '视频' : '图片'}</span>
 
-            {item.format && <>
-              <span className="info-label">格式</span>
-              <span className="info-value">{item.format.toUpperCase()}</span>
-            </>}
+              {item.format && <>
+                <span className="info-label">格式</span>
+                <span className="info-value">{item.format.toUpperCase()}</span>
+              </>}
 
-            {item.width && item.height && <>
-              <span className="info-label">尺寸</span>
-              <span className="info-value">{item.width} × {item.height}</span>
-            </>}
+              {item.width && item.height && <>
+                <span className="info-label">尺寸</span>
+                <span className="info-value">{item.width} × {item.height}</span>
+              </>}
 
-            <span className="info-label">文件大小</span>
-            <span className="info-value">{formatFileSize(item.size)}</span>
+              <span className="info-label">文件大小</span>
+              <span className="info-value">{formatFileSize(item.size)}</span>
 
-            <span className="info-label">修改日期</span>
-            <span className="info-value">{formatDate(item.modified)}</span>
+              <span className="info-label">修改日期</span>
+              <span className="info-value">{formatDate(item.modified)}</span>
 
-            {isVideo && item.duration && <>
-              <span className="info-label">时长</span>
-              <span className="info-value">{formatDuration(item.duration)}</span>
-            </>}
+              {isVideo && item.duration && <>
+                <span className="info-label">时长</span>
+                <span className="info-value">{formatDuration(item.duration)}</span>
+              </>}
 
-            {isVideo && item.videoCodec && <>
-              <span className="info-label">编码</span>
-              <span className="info-value">{item.videoCodec}</span>
-            </>}
+              {isVideo && item.videoCodec && <>
+                <span className="info-label">编码</span>
+                <span className="info-value">{item.videoCodec}</span>
+              </>}
 
-            {isVideo && item.bitrate > 0 && <>
-              <span className="info-label">码率</span>
-              <span className="info-value">{Math.round(item.bitrate / 1000)} kbps</span>
-            </>}
+              {isVideo && item.bitrate > 0 && <>
+                <span className="info-label">码率</span>
+                <span className="info-value">{Math.round(item.bitrate / 1000)} kbps</span>
+              </>}
 
-            {!isVideo && item.colorSpace && <>
-              <span className="info-label">色彩空间</span>
-              <span className="info-value">{item.colorSpace}</span>
-            </>}
+              {!isVideo && item.colorSpace && <>
+                <span className="info-label">色彩空间</span>
+                <span className="info-value">{item.colorSpace}</span>
+              </>}
 
-            {!isVideo && item.channels != null && <>
-              <span className="info-label">通道</span>
-              <span className="info-value">{item.channels} {item.hasAlpha ? '(含透明)' : ''}</span>
-            </>}
+              {!isVideo && item.channels != null && <>
+                <span className="info-label">通道</span>
+                <span className="info-value">{item.channels} {item.hasAlpha ? '(含透明)' : ''}</span>
+              </>}
 
-            {item.folder && item.folder !== '.' && <>
-              <span className="info-label">所在目录</span>
-              <span className="info-value">{item.folder}</span>
-            </>}
+              {item.folder && item.folder !== '.' && <>
+                <span className="info-label">所在目录</span>
+                <span className="info-value">{item.folder}</span>
+              </>}
 
-            <span className="info-label">完整路径</span>
-            <span className="info-value info-path">{item.path}</span>
+              <span className="info-label">完整路径</span>
+              <span className="info-value info-path">{item.path}</span>
+            </div>
           </div>
         </div>
       )}
