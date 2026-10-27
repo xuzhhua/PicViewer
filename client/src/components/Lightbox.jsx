@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useApi from '../hooks/useApi';
+import useWakeLock from '../hooks/useWakeLock';
 import { mediaVersion } from '../utils/mediaUrl';
 import { copyText } from '../utils/clipboard';
 import './Lightbox.css';
@@ -77,6 +78,9 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const contentRef = useRef(null);
   // 详情面板是否打开（给定时器/键盘回调同步读取，避免闭包拿到旧值）
   const showInfoRef = useRef(false);
+
+  // 灯箱打开期间保持屏幕常亮，退出灯箱自动恢复系统设置
+  useWakeLock(true);
 
   // Refs to keep latest values for synchronous access in event handlers
   const zoomRef = useRef(1);
