@@ -9,6 +9,7 @@ import AboutDialog from './components/AboutDialog';
 import UpdateToast from './components/UpdateToast';
 import useApi from './hooks/useApi';
 import { mediaVersion } from './utils/mediaUrl';
+import { copyText } from './utils/clipboard';
 import { checkForUpdate } from './pwa';
 import './App.css';
 
@@ -329,7 +330,8 @@ export default function App() {
   }, [contextMenu, ctxMenuPos]);
 
   const handleCopyPath = useCallback((item) => {
-    navigator.clipboard.writeText(item.path).catch(() => {});
+    // 手机局域网 HTTP 访问时 navigator.clipboard 不可用，统一走带兜底的 copyText
+    copyText(item.path);
     setContextMenu(null);
   }, []);
 

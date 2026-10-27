@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useApi from '../hooks/useApi';
 import { mediaVersion } from '../utils/mediaUrl';
+import { copyText } from '../utils/clipboard';
 import './Lightbox.css';
 
 const MIN_ZOOM = 0.5;
@@ -38,7 +39,7 @@ function getPreviewEdge() {
 }
 
 export default function Lightbox({ images, currentIndex, onClose, onNavigate, favorites, onAddFavorite, onRemoveFavorite, onDeleteRequest, keyboardDisabled }) {
-  const { getImageUrl, getThumbnailUrl, getPreviewUrl } = useApi();
+  const { getImageUrl, getThumbnailUrl, getPreviewUrl, getAiMetaUrl } = useApi();
   const [loaded, setLoaded] = useState(false);
   // 预览图加载失败时退回原图（旧格式/极端情况下的兜底）
   const [useOriginal, setUseOriginal] = useState(false);
@@ -48,6 +49,12 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
   const [slideshow, setSlideshow] = useState(false);
   const [slideInterval, setSlideInterval] = useState(4000);
   const [showInfo, setShowInfo] = useState(false);
+  // 详情面板分页：'info' | 'ai'（AI 分页只在检测到生成元数据时出现）
+  const [infoTab, setInfoTab] = useState('info');
+  const [aiMeta, setAiMeta] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [copiedKey, setCopiedKey] = useState('');
+  const copyTimerRef = useRef(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -151,6 +158,40 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
     setUseOriginal(false);
     setDetailLoaded(false);
   }, [item?.path]);
+
+  // 详情面板打开时拉取 AI 生成元数据（提示词/采样器/种子）；切图或关面板时丢弃
+  useEffect(() => {
+    if (!showInfo || !item || isVideo) {
+      setAiMeta(null);
+      setAiLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setAiLoading(true);
+    setAiMeta(null);
+    fetch(getAiMetaUrl(item.path))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setAiMeta(data && data.hasAI ? data : null);
+      })
+      .catch(() => { if (!cancelled) setAiMeta(null); })
+      .finally(() => { if (!cancelled) setAiLoading(false); });
+    return () => { cancelled = true; };
+  }, [showInfo, item?.path, isVideo, getAiMetaUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 切图后回到「信息」页，避免停在没有内容的 AI 页
+  useEffect(() => { setInfoTab('info'); }, [item?.path]);
+
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
+
+  const handleCopy = useCallback(async (text, key) => {
+    const ok = await copyText(text);
+    if (!ok) return;
+    setCopiedKey(key);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedKey(''), 1600);
+  }, []);
 
   const resetView = useCallback(() => {
     setZoom(1); setPanX(0); setPanY(0); setRotation(0);
@@ -686,13 +727,27 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
       {showInfo && (
         <div className="lightbox-info-panel" onClick={e => e.stopPropagation()} role="dialog" aria-label="媒体信息">
           <div className="info-panel-header">
-            <h4><img src="/icons/note.svg" alt="" width="16" height="16" />媒体信息</h4>
+            <h4><img src="/icons/note.svg" alt="" width="16" height="16" />{infoTab === 'ai' ? 'AI 生成信息' : '媒体信息'}</h4>
             <button className="lb-btn info-panel-close" onClick={() => setShowInfo(false)}
               title="关闭详细信息 (Esc)" aria-label="关闭详细信息">
               <img src="/icons/close.svg" alt="" width="16" height="16" />
             </button>
           </div>
+          <div className="info-tabs" role="tablist" aria-label="详情分页">
+            <button type="button" role="tab" aria-selected={infoTab === 'info'}
+              className={`info-tab${infoTab === 'info' ? ' active' : ''}`}
+              onClick={() => setInfoTab('info')}>信息</button>
+            {aiMeta && (
+              <button type="button" role="tab" aria-selected={infoTab === 'ai'}
+                className={`info-tab${infoTab === 'ai' ? ' active' : ''}`}
+                onClick={() => setInfoTab('ai')}>AI 生成</button>
+            )}
+            {aiLoading && <span className="info-tab-loading">读取 AI 信息…</span>}
+          </div>
           <div className="info-panel-body">
+            {infoTab === 'ai' && aiMeta ? (
+              <AiMetaView meta={aiMeta} copiedKey={copiedKey} onCopy={handleCopy} />
+            ) : (
             <div className="info-grid">
               <span className="info-label">文件名</span>
               <span className="info-value">{item.name}</span>
@@ -749,8 +804,112 @@ export default function Lightbox({ images, currentIndex, onClose, onNavigate, fa
               <span className="info-label">完整路径</span>
               <span className="info-value info-path">{item.path}</span>
             </div>
+            )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 复制按钮：文字会短暂变成「已复制」。
+ * 手机上走 HTTP 局域网访问时 navigator.clipboard 不可用，copyText 内部会兜底。
+ */
+function CopyButton({ text, copyKey, copiedKey, onCopy, className = 'ai-copy' }) {
+  const copied = copiedKey === copyKey;
+  return (
+    <button type="button" className={`${className}${copied ? ' copied' : ''}`}
+      onClick={() => onCopy(text, copyKey)} aria-label={copied ? '已复制' : '复制'}>
+      {copied ? '已复制' : '复制'}
+    </button>
+  );
+}
+
+function AiTextBlock({ label, text, copyKey, copiedKey, onCopy }) {
+  if (!text) return null;
+  return (
+    <div className="ai-block">
+      <div className="ai-block-head">
+        <span className="ai-block-label">{label}</span>
+        <CopyButton text={text} copyKey={copyKey} copiedKey={copiedKey} onCopy={onCopy} />
+      </div>
+      <div className="ai-text">{text}</div>
+    </div>
+  );
+}
+
+/** 汇总成一份可直接粘贴的文本（A1111 风格的提示词块 + 参数行） */
+function buildAiCopyText(meta) {
+  const parts = [];
+  if (meta.positive) parts.push(meta.positive);
+  if (meta.negative) parts.push(`Negative prompt: ${meta.negative}`);
+  if (meta.params && meta.params.length) {
+    parts.push(meta.params.map((p) => `${p.label}: ${p.value}`).join(', '));
+  }
+  return parts.join('\n\n');
+}
+
+function AiMetaView({ meta, copiedKey, onCopy }) {
+  const hasPrompt = !!(meta.positive || meta.negative);
+  return (
+    <div className="ai-meta">
+      <div className="ai-head">
+        <span className="ai-badge">{meta.tool || 'AI'}</span>
+        <span className="ai-head-note">从图片元数据中读取</span>
+      </div>
+
+      {!hasPrompt && <div className="ai-empty">这张图片没有记录提示词，但保留了其他生成参数。</div>}
+
+      <AiTextBlock label="正向提示词" text={meta.positive} copyKey="positive"
+        copiedKey={copiedKey} onCopy={onCopy} />
+      <AiTextBlock label="反向提示词" text={meta.negative} copyKey="negative"
+        copiedKey={copiedKey} onCopy={onCopy} />
+
+      {meta.params && meta.params.length > 0 && (
+        <div className="ai-section">
+          <div className="ai-section-title">生成参数</div>
+          <div className="info-grid ai-param-grid">
+            {meta.params.map((p, i) => (
+              <React.Fragment key={`${p.label}-${i}`}>
+                <span className="info-label">{p.label}</span>
+                <span className="info-value">{p.value}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {meta.texts && meta.texts.length > 0 && (
+        <div className="ai-section">
+          <div className="ai-section-title">其他文本</div>
+          {meta.texts.map((t, i) => (
+            <AiTextBlock key={`text-${i}`} label={t.label || '文本'} text={t.text}
+              copyKey={`text-${i}`} copiedKey={copiedKey} onCopy={onCopy} />
+          ))}
+        </div>
+      )}
+
+      {meta.raw && meta.raw.length > 0 && (
+        <details className="ai-raw">
+          <summary>原始元数据（{meta.raw.length}）</summary>
+          {meta.raw.map((r, i) => (
+            <div className="ai-raw-item" key={`${r.key}-${i}`}>
+              <div className="ai-block-head">
+                <span className="ai-block-label">{r.key}</span>
+                <CopyButton text={r.text} copyKey={`raw-${i}`} copiedKey={copiedKey} onCopy={onCopy} />
+              </div>
+              <pre className="ai-raw-text">{r.text}</pre>
+            </div>
+          ))}
+        </details>
+      )}
+
+      {hasPrompt && (
+        <button type="button" className={`ai-copy-all${copiedKey === 'all' ? ' copied' : ''}`}
+          onClick={() => onCopy(buildAiCopyText(meta), 'all')}>
+          {copiedKey === 'all' ? '已复制全部' : '复制全部'}
+        </button>
       )}
     </div>
   );

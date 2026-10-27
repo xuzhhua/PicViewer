@@ -453,6 +453,168 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+/* 详情分页：信息 / AI 生成（AI 分页只在检测到生成元数据时出现） */
+.info-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin: 0 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.info-tab {
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.info-tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.info-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.info-tab-loading {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.ai-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ai-head-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ai-block {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.ai-block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ai-block-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ai-copy,
+.ai-copy-all {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ai-copy:hover,
+.ai-copy-all:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ai-copy.copied,
+.ai-copy-all.copied {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.ai-text {
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-section-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ai-param-grid {
+  grid-template-columns: 72px 1fr;
+}
+
+.ai-raw summary {
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ai-raw-item {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ai-raw-text {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-copy-all {
+  align-self: flex-start;
+}
+
 .info-grid {
   display: grid;
   grid-template-columns: 80px 1fr;
@@ -467,7 +629,8 @@
 
 .info-value {
   color: var(--text);
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .info-path {
@@ -649,6 +812,15 @@
     padding: 14px 16px calc(18px + var(--sab));
   }
 
+  .info-tabs {
+    padding: 0 8px;
+    margin: 4px 0 0;
+  }
+
+  .ai-param-grid {
+    grid-template-columns: 66px 1fr;
+  }
+
   .info-grid {
     grid-template-columns: 75px 1fr;
     gap: 10px 12px;
@@ -737,6 +909,19 @@
     gap: 8px 10px;
     font-size: 13px;
   }
+
+  .info-tab {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .ai-text {
+    font-size: 13px;
+  }
+
+  .ai-param-grid {
+    grid-template-columns: 62px 1fr;
+  }
 }
 
 /* ===== 亮色主题 ===== */
@@ -800,6 +985,36 @@
 [data-theme="light"] .lightbox-info-panel {
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* 亮色下的分页与 AI 区块 */
+[data-theme="light"] .info-tabs {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .info-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .ai-block,
+[data-theme="light"] .ai-raw-item {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .ai-block-head {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .ai-copy,
+[data-theme="light"] .ai-copy-all {
+  border-color: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .ai-copy:hover,
+[data-theme="light"] .ai-copy-all:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .info-panel-header {

@@ -214,6 +214,11 @@ export default function useApi() {
     return `/api/image/preview?path=${encoded}&w=${maxEdge}${version ? `&v=${encodeURIComponent(version)}` : ''}`;
   }, []);
 
+  // AI 生成信息（提示词/采样器/种子；无 AI 元数据时服务端返回 { hasAI: false }）
+  const getAiMetaUrl = useCallback((filePath) => {
+    return `/api/ai-meta?path=${encodePath(filePath)}`;
+  }, []);
+
   // Open native folder picker
   const pickFolder = useCallback(async () => {
     try {
@@ -397,6 +402,7 @@ export default function useApi() {
     removeFromView,
     getThumbnailUrl,
     getImageUrl,
-    getPreviewUrl
+    getPreviewUrl,
+    getAiMetaUrl
   };
 }

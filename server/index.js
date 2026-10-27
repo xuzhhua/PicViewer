@@ -11,6 +11,7 @@ const ignoredRouter = require('./routes/ignored');
 const searchRouter = require('./routes/search');
 const actionsRouter = require('./routes/actions');
 const deleteRouter = require('./routes/delete');
+const aiMetaRouter = require('./routes/aiMeta');
 const cache = require('./services/cache');
 const { readConfig } = require('./paths');
 const { jsonCompression } = require('./middleware/jsonCompression');
@@ -88,6 +89,7 @@ app.use('/api/ignored', ignoredRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/actions', actionsRouter);
 app.use('/api/delete', deleteRouter);
+app.use('/api/ai-meta', aiMetaRouter);
 
 // Reclaim orphaned/stale cache in the background — never block startup on it.
 cache.init().catch((e) => console.error('[Cache] init failed:', e.message));
